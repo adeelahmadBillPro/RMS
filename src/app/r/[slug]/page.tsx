@@ -95,7 +95,7 @@ export default async function PublicLanding({ params }: { params: { slug: string
     <div className="space-y-6 pb-10">
       {/* ── HERO CAROUSEL ────────────────────────────────────────────── */}
       <section className="container pt-4">
-        <Carousel autoplayMs={5500} className="shadow-md">
+        <Carousel autoplayMs={4000} className="shadow-md">
           {HERO_SLIDES.map((slide, i) => (
             <div key={i} className="relative h-full w-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}

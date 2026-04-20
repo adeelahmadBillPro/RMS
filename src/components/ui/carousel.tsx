@@ -29,7 +29,9 @@ export function Carousel({
   autoplayMs = 0,
   dots = true,
   arrows = true,
-  pauseOnHover = true,
+  // Default OFF so autoplay keeps rotating even when the user rests their
+  // cursor over the carousel (most marketing carousels behave this way).
+  pauseOnHover = false,
   className,
   aspect = "aspect-[16/9]",
 }: CarouselProps) {
