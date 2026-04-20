@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * EasyMenu Design Tokens (Addendum §6.2)
+ * Stored as HSL triplets so Tailwind's hsl(var(--token)) works.
+ */
+
+@layer base {
+  :root {
+    /* LIGHT MODE — surfaces */
+    --background: 0 0% 100%;            /* #FFFFFF */
+    --surface: 60 9% 98%;               /* #FAFAF9 */
+    --surface-muted: 60 5% 96%;         /* #F5F5F4 */
+    --border: 24 6% 90%;                /* #E7E5E4 */
+    --border-strong: 24 6% 83%;         /* #D6D3D1 */
+
+    /* LIGHT MODE — text */
+    --foreground: 24 10% 10%;           /* #1C1917 */
+    --foreground-muted: 25 5% 32%;      /* #57534E */
+    --foreground-subtle: 24 6% 64%;     /* #A8A29E */
+
+    /* BRAND — appetizing orange */
+    --primary: 21 90% 48%;              /* #EA580C */
+    --primary-hover: 21 83% 41%;        /* #C2410C */
+    --primary-pressed: 21 79% 35%;      /* #9A3412 */
+    --primary-subtle: 33 100% 96%;      /* #FFF7ED */
+    --primary-foreground: 0 0% 100%;    /* #FFFFFF */
+
+    /* Accent — warm red */
+    --accent: 0 72% 51%;                /* #DC2626 */
+    --accent-subtle: 0 86% 97%;         /* #FEF2F2 */
+
+    /* Semantic */
+    --success: 142 71% 36%;             /* #16A34A */
+    --success-subtle: 138 76% 97%;      /* #F0FDF4 */
+    --warning: 32 94% 44%;              /* #D97706 */
+    --warning-subtle: 48 100% 96%;      /* #FFFBEB */
+    --info: 221 83% 53%;                /* #2563EB */
+    --info-subtle: 214 100% 97%;        /* #EFF6FF */
+    --danger: 0 72% 51%;                /* #DC2626 */
+    --danger-subtle: 0 86% 97%;         /* #FEF2F2 */
+
+    --radius: 8px;
+  }
+
+  .dark {
+    /* DARK MODE — surfaces (warm near-black) */
+    --background: 24 10% 5%;            /* #0C0A09 */
+    --surface: 24 10% 10%;              /* #1C1917 */
+    --surface-muted: 25 9% 15%;         /* #292524 */
+    --border: 25 9% 15%;                /* #292524 */
+    --border-strong: 28 8% 25%;         /* #44403C */
+
+    --foreground: 60 9% 98%;            /* #FAFAF9 */
+    --foreground-muted: 24 6% 64%;      /* #A8A29E */
+    --foreground-subtle: 25 5% 47%;     /* #78716C */
+
+    /* Brand shifts brighter in dark for contrast */
+    --primary: 25 95% 62%;              /* #FB923C */
+    --primary-hover: 21 90% 53%;        /* #F97316 */
+    --primary-pressed: 21 90% 48%;      /* #EA580C */
+    --primary-subtle: 24 10% 10%;       /* uses surface w/ overlay */
+    --primary-foreground: 24 10% 5%;
+
+    --accent: 0 72% 51%;
+    --accent-subtle: 0 60% 15%;
+
+    --success: 142 71% 45%;
+    --success-subtle: 142 30% 12%;
+    --warning: 32 94% 50%;
+    --warning-subtle: 32 30% 12%;
+    --info: 221 83% 60%;
+    --info-subtle: 221 30% 12%;
+    --danger: 0 72% 51%;
+    --danger-subtle: 0 60% 15%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-body;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Visible focus ring for keyboard navigation */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Custom selection color */
+  ::selection {
+    background: hsl(var(--primary-subtle));
+    color: hsl(var(--primary-pressed));
+  }
+}
+
+@layer utilities {
+  /* Subtle hairline divider that respects dark mode */
+  .hairline {
+    @apply border-b border-border;
+  }
+}
