@@ -94,6 +94,18 @@ CREATE POLICY payment_isolation ON "Payment"
 -- OrderItem / OrderItemModifier / OrderStatusLog: scoped transitively
 -- via Order; queries always start from a tenant-scoped Order.
 
+-- DeliveryAssignment --------------------------------------------------
+ALTER TABLE "DeliveryAssignment" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS delivery_assignment_isolation ON "DeliveryAssignment";
+CREATE POLICY delivery_assignment_isolation ON "DeliveryAssignment"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- DeliveryCashSubmission ----------------------------------------------
+ALTER TABLE "DeliveryCashSubmission" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS delivery_cash_isolation ON "DeliveryCashSubmission";
+CREATE POLICY delivery_cash_isolation ON "DeliveryCashSubmission"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
 -- MenuVariant / ModifierGroup / Modifier are isolated transitively via
 -- MenuItem; explicit per-table policies would require denormalising
 -- tenantId. Phase 1 ships parent-table RLS only — application-layer

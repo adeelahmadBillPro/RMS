@@ -107,6 +107,20 @@ enum PaymentVerificationStatus {
   FAILED
 }
 
+enum DeliveryAssignmentStatus {
+  ASSIGNED
+  PICKED_UP
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+enum DeliveryCashStatus {
+  PENDING
+  RECONCILED
+  DISPUTED
+}
+
 enum AuditAction {
   TENANT_CREATED
   USER_CREATED
@@ -145,6 +159,12 @@ enum AuditAction {
   ORDER_STATUS_CHANGED
   ORDER_CANCELLED
   PAYMENT_RECORDED
+  DELIVERY_ASSIGNED
+  DELIVERY_PICKED_UP
+  DELIVERY_COMPLETED
+  DELIVERY_RETURNED
+  DELIVERY_CASH_SUBMITTED
+  DELIVERY_CASH_RECONCILED
 }
 
 // ----------------------------- AUTH ----------------------------------
@@ -200,10 +220,12 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  accounts    Account[]
-  sessions    Session[]
-  memberships TenantMembership[]
-  auditLogs   AuditLog[]
+  accounts             Account[]
+  sessions             Session[]
+  memberships          TenantMembership[]
+  auditLogs            AuditLog[]
+  deliveryAssignments  DeliveryAssignment[]
+  deliveryCashEnvelopes DeliveryCashSubmission[]
 
   @@index([email])
 }
@@ -237,20 +259,22 @@ model Tenant {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  memberships    TenantMembership[]
-  subscription   Subscription?
-  branches       Branch[]
-  menuCategories MenuCategory[]
-  menuItems      MenuItem[]
-  ingredients    Ingredient[]
-  suppliers      Supplier[]
-  stockMovements StockMovement[]
-  purchases      Purchase[]
-  tables         RestaurantTable[]
-  customers      Customer[]
-  orders         Order[]
-  payments       Payment[]
-  auditLogs      AuditLog[]
+  memberships         TenantMembership[]
+  subscription        Subscription?
+  branches            Branch[]
+  menuCategories      MenuCategory[]
+  menuItems           MenuItem[]
+  ingredients         Ingredient[]
+  suppliers           Supplier[]
+  stockMovements      StockMovement[]
+  purchases           Purchase[]
+  tables              RestaurantTable[]
+  customers           Customer[]
+  orders              Order[]
+  payments            Payment[]
+  deliveryAssignments DeliveryAssignment[]
+  deliveryCashEnvelopes DeliveryCashSubmission[]
+  auditLogs           AuditLog[]
 
   @@index([slug])
   @@index([deletedAt])
@@ -646,12 +670,13 @@ model Order {
   cancelledAt DateTime?
   cancelReason String?
 
-  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  table      RestaurantTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  customer   Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  items      OrderItem[]
-  payments   Payment[]
-  statusLog  OrderStatusLog[]
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  table              RestaurantTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  customer           Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items              OrderItem[]
+  payments           Payment[]
+  statusLog          OrderStatusLog[]
+  deliveryAssignment DeliveryAssignment?
 
   @@unique([tenantId, orderNumber])
   @@index([tenantId, status])
@@ -728,6 +753,60 @@ model Payment {
   @@index([tenantId, createdAt])
   @@index([orderId])
   @@index([verification])
+}
+
+// ----------------------------- DELIVERY -------------------------------
+
+model DeliveryAssignment {
+  id                 String                   @id @default(cuid())
+  tenantId           String
+  orderId            String                   @unique
+  deliveryUserId     String
+  status             DeliveryAssignmentStatus @default(ASSIGNED)
+  // Cash actually handed over by customer, in paisa. 0 if prepaid online.
+  collectedCashCents Int                      @default(0)
+  // Link to a DeliveryCashSubmission once the rider drops the envelope.
+  cashSubmissionId   String?
+  notes              String?
+
+  assignedAt   DateTime  @default(now())
+  pickedUpAt   DateTime?
+  deliveredAt  DateTime?
+  returnedAt   DateTime?
+  returnReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order          Order                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deliveryUser   User                    @relation(fields: [deliveryUserId], references: [id])
+  cashSubmission DeliveryCashSubmission? @relation(fields: [cashSubmissionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([deliveryUserId, status])
+  @@index([tenantId, assignedAt])
+}
+
+model DeliveryCashSubmission {
+  id              String             @id @default(cuid())
+  tenantId        String
+  deliveryUserId  String
+  totalCents      Int
+  status          DeliveryCashStatus @default(PENDING)
+  notes           String?
+  reconcileNotes  String?
+  reconciledById  String?
+
+  submittedAt  DateTime  @default(now())
+  reconciledAt DateTime?
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveryUser User                 @relation(fields: [deliveryUserId], references: [id])
+  assignments  DeliveryAssignment[]
+
+  @@index([tenantId, submittedAt])
+  @@index([deliveryUserId, status])
 }
 
 // ----------------------------- BILLING -------------------------------

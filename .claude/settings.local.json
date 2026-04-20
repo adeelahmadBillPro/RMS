@@ -60,7 +60,8 @@
       "Bash(xargs -I {} powershell -Command \"Stop-Process -Id {} -Force -ErrorAction SilentlyContinue\")",
       "Bash(psql -U postgres -h localhost -d easymenu_db -tAc \"SELECT \\\\\"qrCode\\\\\" FROM \\\\\"RestaurantTable\\\\\" LIMIT 1\")",
       "Bash(curl -s -o /dev/null -w '/r/burgerhub/t/<qr> HTTP %{http_code}\\\\n' http://localhost:3100/r/burgerhub/t/__TRACKED_VAR__)",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(polish\\): food photos, customer tracking page, landing hero, password toggle, dashboard quick-links *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(polish\\): food photos, customer tracking page, landing hero, password toggle, dashboard quick-links *)",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(delivery\\): rider assignments, mobile rider view, end-of-shift cash reconciliation *)"
     ]
   }
 }

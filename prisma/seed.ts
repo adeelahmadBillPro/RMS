@@ -489,8 +489,108 @@ async function main() {
     }
   }
 
+  // ── Delivery rider (for Phase 3 Module B demo) ─────────────────────
+  const riderPasswordHash = await bcrypt.hash("Rider@123", 12);
+  const rider = await prisma.user.upsert({
+    where: { email: "rider@easymenu.dev" },
+    update: { passwordHash: riderPasswordHash },
+    create: {
+      email: "rider@easymenu.dev",
+      name: "Ali the Rider",
+      passwordHash: riderPasswordHash,
+      emailVerified: new Date(),
+    },
+  });
+  await prisma.tenantMembership.upsert({
+    where: {
+      tenantId_userId: { tenantId: demoTenant.id, userId: rider.id },
+    },
+    update: { role: "DELIVERY" },
+    create: { tenantId: demoTenant.id, userId: rider.id, role: "DELIVERY" },
+  });
+
+  // Seed one ready-to-deliver order so the rider view isn't empty on first open.
+  const existingDeliveryDemo = await prisma.order.findFirst({
+    where: {
+      tenantId: demoTenant.id,
+      channel: "DELIVERY",
+      customerName: "Bilal Demo",
+    },
+  });
+  if (!existingDeliveryDemo) {
+    const primary = await prisma.branch.findFirstOrThrow({
+      where: { tenantId: demoTenant.id, isPrimary: true },
+      select: { id: true },
+    });
+    const variant = await prisma.menuVariant.findFirst({
+      where: {
+        item: { tenantId: demoTenant.id, name: "Zinger Burger" },
+        name: "Single",
+        deletedAt: null,
+      },
+      include: { item: { select: { id: true, name: true } } },
+    });
+    if (variant) {
+      const customer = await prisma.customer.upsert({
+        where: { tenantId_phone: { tenantId: demoTenant.id, phone: "03009876543" } },
+        update: { name: "Bilal Demo" },
+        create: { tenantId: demoTenant.id, phone: "03009876543", name: "Bilal Demo" },
+      });
+      const last = await prisma.order.findFirst({
+        where: { tenantId: demoTenant.id },
+        orderBy: { orderNumber: "desc" },
+        select: { orderNumber: true },
+      });
+      const nextNumber = (last?.orderNumber ?? 0) + 1;
+      const order = await prisma.order.create({
+        data: {
+          tenantId: demoTenant.id,
+          branchId: primary.id,
+          channel: "DELIVERY",
+          status: "READY",
+          orderNumber: nextNumber,
+          customerId: customer.id,
+          customerName: "Bilal Demo",
+          customerPhone: "03009876543",
+          deliveryAddress: "House 21, Street 7, DHA Phase 5, Karachi",
+          subtotalCents: variant.priceCents,
+          taxCents: Math.round(variant.priceCents * 0.17),
+          totalCents: variant.priceCents + Math.round(variant.priceCents * 0.17),
+          idempotencyKey: `seed-delivery-${demoTenant.id}`,
+          items: {
+            create: {
+              menuItemId: variant.item.id,
+              variantId: variant.id,
+              itemNameSnap: variant.item.name,
+              variantNameSnap: variant.name,
+              unitPriceCents: variant.priceCents,
+              quantity: 1,
+              lineTotalCents: variant.priceCents,
+            },
+          },
+        },
+      });
+      await prisma.orderStatusLog.createMany({
+        data: [
+          { orderId: order.id, fromStatus: null, toStatus: "NEW" },
+          { orderId: order.id, fromStatus: "NEW", toStatus: "PREPARING" },
+          { orderId: order.id, fromStatus: "PREPARING", toStatus: "READY" },
+        ],
+      });
+      await prisma.deliveryAssignment.create({
+        data: {
+          tenantId: demoTenant.id,
+          orderId: order.id,
+          deliveryUserId: rider.id,
+          status: "ASSIGNED",
+        },
+      });
+    }
+  }
+
   console.log(`✓ Demo tenant: /${demoTenant.slug}`);
   console.log(`  Owner login: demo@easymenu.dev / Demo@123`);
+  console.log(`  Rider login: rider@easymenu.dev / Rider@123`);
 }
 
 main()
