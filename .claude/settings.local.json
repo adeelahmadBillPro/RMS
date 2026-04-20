@@ -64,7 +64,8 @@
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(delivery\\): rider assignments, mobile rider view, end-of-shift cash reconciliation *)",
       "Bash(psql -U postgres -h localhost -d easymenu_db -tAc \"SELECT column_name FROM information_schema.columns WHERE table_name='Tenant' AND column_name='whatsappEnabled'\")",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(whatsapp\\): per-tenant toggle, inbox, webhook, convert-to-order link *)",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(motion\\): micro-animations across buttons, badges, skeletons, cart pill *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(motion\\): micro-animations across buttons, badges, skeletons, cart pill *)",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux: placeholder pages for Expenses / Staff / Shifts / Payroll / Reports *)"
     ]
   }
 }
