@@ -216,42 +216,76 @@ export function PublicMenuScreen(props: Props) {
         </div>
       ) : null}
 
-      {/* Channel switcher (generic mode only) */}
-      {props.mode === "generic" && (props.hasTakeaway || props.hasDelivery) ? (
-        <div className="border-b border-border bg-surface px-3 py-2">
-          <div className="container flex flex-wrap items-center gap-2 text-xs">
-            {props.hasTakeaway ? (
-              <button
-                type="button"
-                onClick={() => setChannel("TAKEAWAY")}
-                className={`rounded-full px-3 py-1.5 transition-colors ${
-                  channel === "TAKEAWAY"
-                    ? "bg-foreground text-background"
-                    : "bg-surface-muted text-foreground-muted hover:text-foreground"
-                }`}
-              >
-                Takeaway
-              </button>
-            ) : null}
-            {props.hasDelivery ? (
-              <button
-                type="button"
-                onClick={() => setChannel("DELIVERY")}
-                className={`rounded-full px-3 py-1.5 transition-colors ${
-                  channel === "DELIVERY"
-                    ? "bg-foreground text-background"
-                    : "bg-surface-muted text-foreground-muted hover:text-foreground"
-                }`}
-              >
-                Delivery
-              </button>
+      {/* HERO PROMO STRIP */}
+      {props.mode === "generic" ? (
+        <section className="container pt-4">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary-hover px-5 py-6 text-primary-foreground shadow-md md:px-8 md:py-8">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-10 -top-8 h-44 w-44 rounded-full bg-white/15 blur-3xl"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-16 left-1/3 h-36 w-36 rounded-full bg-white/10 blur-3xl"
+            />
+            <div className="relative flex items-center justify-between gap-4">
+              <div>
+                <p className="flex items-center gap-1.5 text-xs font-semibold">
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 backdrop-blur">🔥 Deal</span>
+                  <span className="opacity-90">Free delivery over Rs 500</span>
+                </p>
+                <h2 className="mt-2 text-2xl font-bold leading-tight md:text-3xl">
+                  What are you craving today?
+                </h2>
+                <p className="mt-1 text-sm text-white/85 md:text-base">
+                  Tap an item to add it fast — customise in one modal.
+                </p>
+              </div>
+              <div className="hidden text-right text-xs text-white/85 md:block">
+                <p className="opacity-80">Order method</p>
+                <p className="mt-0.5 text-base font-semibold uppercase tracking-wide">
+                  {channel === "DELIVERY" ? "Delivery" : "Takeaway"}
+                </p>
+              </div>
+            </div>
+
+            {/* Channel switcher becomes part of the hero */}
+            {(props.hasTakeaway || props.hasDelivery) ? (
+              <div className="relative mt-4 inline-flex gap-1 rounded-full bg-white/15 p-1 backdrop-blur">
+                {props.hasTakeaway ? (
+                  <button
+                    type="button"
+                    onClick={() => setChannel("TAKEAWAY")}
+                    className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+                      channel === "TAKEAWAY"
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-white/90 hover:text-white"
+                    }`}
+                  >
+                    Takeaway
+                  </button>
+                ) : null}
+                {props.hasDelivery ? (
+                  <button
+                    type="button"
+                    onClick={() => setChannel("DELIVERY")}
+                    className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+                      channel === "DELIVERY"
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-white/90 hover:text-white"
+                    }`}
+                  >
+                    Delivery
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
-        </div>
+        </section>
       ) : null}
 
       {/* Categories */}
-      <nav className="sticky top-0 z-10 flex gap-1 overflow-x-auto border-b border-border bg-background px-3 py-2">
+      <nav className="sticky top-16 z-10 flex gap-1 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur">
         {props.categories.map((c) => (
           <button
             key={c.id}
