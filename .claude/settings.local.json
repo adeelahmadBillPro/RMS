@@ -67,7 +67,10 @@
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(motion\\): micro-animations across buttons, badges, skeletons, cart pill *)",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux: placeholder pages for Expenses / Staff / Shifts / Payroll / Reports *)",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(auth\\): split-screen food hero for login/signup — feels like a real food app *)",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(pos\\): ClaPos-style 3-column redesign — category rail + grid + order summary *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(pos\\): ClaPos-style 3-column redesign — category rail + grid + order summary *)",
+      "Bash(powershell -Command \"Get-Process -Id 30916 -ErrorAction SilentlyContinue | Select-Object Id, StartTime, Path | Format-Table -AutoSize\")",
+      "Bash(curl -s http://localhost:3100/login)",
+      "Bash(curl -s -I http://localhost:3100/burgerhub/pos)"
     ]
   }
 }

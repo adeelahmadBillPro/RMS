@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth.schema";
@@ -16,7 +16,7 @@ import { FieldError, FormField } from "@/components/ui/form-field";
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") ?? "/";
+  const explicitCallback = params.get("callbackUrl");
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -42,7 +42,27 @@ export function LoginForm() {
       setSubmitting(false);
       return;
     }
-    router.push(callbackUrl);
+
+    // Pick the right landing page based on the user's membership.
+    // Explicit callbackUrl (e.g. redirected from a protected page) wins.
+    let destination = explicitCallback;
+    if (!destination) {
+      const session = await getSession();
+      if (session?.user.isSuperAdmin) {
+        destination = "/super-admin";
+      } else {
+        const firstMembership = session?.user.memberships?.[0];
+        if (firstMembership) {
+          destination =
+            firstMembership.role === "DELIVERY"
+              ? `/${firstMembership.tenantSlug}/deliveries/mine`
+              : `/${firstMembership.tenantSlug}`;
+        } else {
+          destination = "/onboarding";
+        }
+      }
+    }
+    router.push(destination);
     router.refresh();
   }
 
