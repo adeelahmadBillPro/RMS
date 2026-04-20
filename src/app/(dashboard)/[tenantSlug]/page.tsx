@@ -62,7 +62,16 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
         createdAt: { gte: todayStart },
         status: { not: "CANCELLED" },
       },
-      select: { id: true, totalCents: true, status: true },
+      select: {
+        id: true,
+        totalCents: true,
+        status: true,
+        channel: true,
+        orderNumber: true,
+        customerName: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
     }),
     prisma.order.findMany({
       where: {
@@ -103,6 +112,21 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
       : null;
   const completedToday = ordersToday.filter((o) => o.status === "COMPLETED").length;
   const avgTicketCents = ordersToday.length > 0 ? Math.round(revenueToday / ordersToday.length) : 0;
+
+  // Bucket today's orders into 24 hourly slots for the sparkline chart
+  const hourlyRevenue = Array.from({ length: 24 }, () => 0);
+  const hourlyCount = Array.from({ length: 24 }, () => 0);
+  for (const o of ordersToday) {
+    const h = new Date(o.createdAt).getHours();
+    if (h >= 0 && h < 24) {
+      hourlyRevenue[h] = (hourlyRevenue[h] ?? 0) + o.totalCents;
+      hourlyCount[h] = (hourlyCount[h] ?? 0) + 1;
+    }
+  }
+  const peakHour =
+    hourlyCount.reduce((peakIdx, v, i) => (v > (hourlyCount[peakIdx] ?? 0) ? i : peakIdx), 0);
+  const maxHourRev = Math.max(1, ...hourlyRevenue);
+  const recentOrders = ordersToday.slice(0, 5);
 
   const trialEndsAt = tenant.subscription?.trialEndsAt;
   const daysLeft = trialEndsAt
@@ -257,6 +281,125 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
             subtitle={lowStockCount > 0 ? `${lowStockCount} low-stock` : "Stock healthy"}
             accent={lowStockCount > 0}
           />
+        </div>
+
+        {/* ── HOURLY CHART + RECENT ORDERS ───────────────────────────── */}
+        <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+          <section className="rounded-2xl border border-border bg-background p-5">
+            <header className="mb-4 flex items-end justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-foreground-muted">
+                  Today by hour
+                </p>
+                <h2 className="text-h3">Revenue pulse</h2>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-xs text-foreground-muted">Peak</p>
+                <p className="font-mono text-sm font-semibold">
+                  {hourlyCount[peakHour] && hourlyCount[peakHour] > 0
+                    ? `${String(peakHour).padStart(2, "0")}:00 · ${hourlyCount[peakHour]} orders`
+                    : "—"}
+                </p>
+              </div>
+            </header>
+            {/* Simple SVG-free bar chart */}
+            <div className="relative h-32 rounded-xl bg-surface-muted/40 p-3">
+              <div className="flex h-full items-end gap-[2px]">
+                {hourlyRevenue.map((rev, h) => {
+                  const height = Math.max(2, Math.round((rev / maxHourRev) * 100));
+                  const isPeak = h === peakHour && (hourlyCount[peakHour] ?? 0) > 0;
+                  const hasData = rev > 0;
+                  return (
+                    <div
+                      key={h}
+                      title={`${String(h).padStart(2, "0")}:00 — ${hourlyCount[h] ?? 0} order${(hourlyCount[h] ?? 0) === 1 ? "" : "s"} · ${formatMoney(rev)}`}
+                      className={`flex-1 rounded-t-sm transition-all duration-300 ${
+                        isPeak
+                          ? "bg-primary"
+                          : hasData
+                            ? "bg-primary/60"
+                            : "bg-surface-muted"
+                      }`}
+                      style={{ height: hasData ? `${height}%` : "2px" }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex justify-between font-mono text-[10px] text-foreground-subtle">
+                <span>00</span>
+                <span>06</span>
+                <span>12</span>
+                <span>18</span>
+                <span>23</span>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-foreground-muted">
+              {ordersToday.length > 0
+                ? `${ordersToday.length} order${ordersToday.length === 1 ? "" : "s"} today · ${formatMoney(revenueToday)} total`
+                : "No orders yet today — hover the POS to take your first one."}
+            </p>
+          </section>
+
+          {/* Recent orders feed */}
+          <section className="flex flex-col rounded-2xl border border-border bg-background p-5">
+            <header className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-foreground-muted">Latest</p>
+                <h2 className="text-h3">Recent orders</h2>
+              </div>
+              <Button asChild size="sm" variant="ghost">
+                <Link href={`/${slug}/orders`}>
+                  All <ArrowRight className="h-3 w-3" />
+                </Link>
+              </Button>
+            </header>
+            {recentOrders.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border py-6 text-center text-xs text-foreground-muted">
+                No orders yet today.
+              </p>
+            ) : (
+              <ul className="flex-1 divide-y divide-border">
+                {recentOrders.map((o) => {
+                  const minutesAgo = Math.max(
+                    0,
+                    Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60_000),
+                  );
+                  return (
+                    <li key={o.id}>
+                      <Link
+                        href={`/${slug}/orders`}
+                        className="group flex items-center gap-3 py-2 transition-colors hover:bg-surface-muted/60"
+                      >
+                        <span
+                          className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold ${
+                            o.status === "COMPLETED"
+                              ? "bg-success-subtle text-success"
+                              : o.status === "READY" || o.status === "OUT_FOR_DELIVERY"
+                                ? "bg-warning-subtle text-warning"
+                                : "bg-info-subtle text-info"
+                          }`}
+                        >
+                          #{o.orderNumber.toString().padStart(4, "0").slice(-3)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 text-xs font-medium">
+                            <span className="truncate">
+                              {o.customerName ?? o.channel.replace("_", " ")}
+                            </span>
+                          </p>
+                          <p className="text-[10px] text-foreground-muted">
+                            {o.channel.replace("_", " ").toLowerCase()} ·{" "}
+                            {minutesAgo < 1 ? "just now" : `${minutesAgo}m ago`}
+                          </p>
+                        </div>
+                        <p className="font-mono text-xs">{formatMoney(o.totalCents)}</p>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
 
         {/* ── TOP ITEMS + SHARE MENU ────────────────────────────────── */}

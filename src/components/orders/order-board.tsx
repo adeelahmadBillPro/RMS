@@ -90,7 +90,14 @@ export function OrderBoard({
                 {list.length === 0 ? (
                   <p className="py-6 text-center text-xs text-foreground-subtle">Empty</p>
                 ) : (
-                  list.map((o) => <OrderCard key={o.id} order={o} onClick={() => openDetail(o.id)} />)
+                  list.map((o) => (
+                    <OrderCard
+                      key={o.id}
+                      order={o}
+                      paidCents={o.paidCents}
+                      onClick={() => openDetail(o.id)}
+                    />
+                  ))
                 )}
               </div>
             </div>
@@ -105,7 +112,13 @@ export function OrderBoard({
           </summary>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {completed.map((o) => (
-              <OrderCard key={o.id} order={o} compact onClick={() => openDetail(o.id)} />
+              <OrderCard
+                key={o.id}
+                order={o}
+                paidCents={o.paidCents}
+                compact
+                onClick={() => openDetail(o.id)}
+              />
             ))}
           </div>
         </details>
