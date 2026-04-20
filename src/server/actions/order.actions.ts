@@ -9,6 +9,7 @@ import { rupeesToPaisa } from "@/lib/utils";
 import { computeTotals, type CartLine } from "@/lib/orders/cart";
 import { deductStockForOrder } from "@/lib/orders/stock-deduct";
 import { realtime, REALTIME_EVENTS, tenantChannel } from "@/lib/realtime";
+import { notify } from "@/lib/notifications/create";
 import {
   createOrderSchema,
   orderCancelSchema,
@@ -242,6 +243,14 @@ export async function createOrderAction(
     branchId: created.branchId,
     status: created.status,
   });
+  await notify({
+    tenantId: ctx.tenantId,
+    type: "ORDER_CREATED",
+    title: `New order #${created.orderNumber.toString().padStart(4, "0")}`,
+    body: `${created.channel.replace("_", " ").toLowerCase()} · ${data.customerName || data.customerPhone || "walk-in"}`,
+    href: `/${slug}/orders`,
+    metadata: { orderId: created.id, orderNumber: created.orderNumber },
+  });
 
   revalidatePath(`/${slug}/orders`);
   revalidatePath(`/${slug}/kds`);
@@ -353,6 +362,29 @@ export async function updateOrderStatusAction(
     id: order.id,
     status: parsed.data.toStatus,
   });
+  // Broadcast a notification for meaningful status milestones
+  const milestoneTypeMap: Record<string, "ORDER_READY" | "ORDER_OUT_FOR_DELIVERY" | "ORDER_COMPLETED"> =
+    {
+      READY: "ORDER_READY",
+      OUT_FOR_DELIVERY: "ORDER_OUT_FOR_DELIVERY",
+      COMPLETED: "ORDER_COMPLETED",
+    };
+  const nType = milestoneTypeMap[parsed.data.toStatus];
+  if (nType) {
+    await notify({
+      tenantId: ctx.tenantId,
+      type: nType,
+      title:
+        nType === "ORDER_READY"
+          ? `Order #${order.orderNumber.toString().padStart(4, "0")} is ready`
+          : nType === "ORDER_OUT_FOR_DELIVERY"
+            ? `Order #${order.orderNumber.toString().padStart(4, "0")} out for delivery`
+            : `Order #${order.orderNumber.toString().padStart(4, "0")} completed`,
+      body: order.customerName ?? order.customerPhone ?? undefined,
+      href: `/${slug}/orders`,
+      metadata: { orderId: order.id },
+    });
+  }
   revalidatePath(`/${slug}/orders`);
   revalidatePath(`/${slug}/kds`);
   return { ok: true, data: { orderId: order.id } };

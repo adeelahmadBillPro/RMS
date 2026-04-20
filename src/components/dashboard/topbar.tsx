@@ -7,14 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { TenantRole } from "@prisma/client";
 import { APP } from "@/lib/config/app";
+import { NotificationBell } from "./notification-bell";
 
 interface TopbarProps {
+  tenantSlug: string;
+  tenantId: string;
   tenantName: string;
   userName: string | null | undefined;
   role: TenantRole;
 }
 
-export function Topbar({ tenantName, userName, role }: TopbarProps) {
+export function Topbar({ tenantSlug, tenantId, tenantName, userName, role }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background px-4">
@@ -31,6 +34,7 @@ export function Topbar({ tenantName, userName, role }: TopbarProps) {
         </Badge>
       </div>
       <div className="flex items-center gap-1">
+        <NotificationBell slug={tenantSlug} tenantId={tenantId} />
         <Button
           variant="ghost"
           size="icon"

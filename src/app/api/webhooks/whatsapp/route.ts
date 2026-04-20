@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { webhookPayloadSchema } from "@/lib/validations/whatsapp.schema";
+import { notify } from "@/lib/notifications/create";
 
 /**
  * Inbound WhatsApp webhook — Phase 3 stub.
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, dropped: "whatsapp disabled" });
   }
 
-  await prisma.$transaction(async (tx) => {
+  const threadOut = await prisma.$transaction(async (tx) => {
     const thread = await tx.whatsAppThread.upsert({
       where: {
         tenantId_customerPhone: { tenantId: tenant.id, customerPhone: fromPhone },
@@ -85,6 +86,16 @@ export async function POST(req: Request) {
         providerMessageId: providerMessageId ?? null,
       },
     });
+    return thread;
+  });
+
+  await notify({
+    tenantId: tenant.id,
+    type: "WHATSAPP_MESSAGE",
+    title: `WhatsApp from ${fromName ?? fromPhone}`,
+    body: messageBody.slice(0, 140),
+    href: `/${tenantSlug}/whatsapp`,
+    metadata: { threadId: threadOut.id, fromPhone },
   });
 
   return NextResponse.json({ ok: true });

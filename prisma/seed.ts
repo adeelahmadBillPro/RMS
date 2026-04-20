@@ -620,6 +620,36 @@ async function main() {
     });
   }
 
+  // Seed a few demo notifications so the bell isn't empty
+  const existingNotifs = await prisma.notification.count({ where: { tenantId: demoTenant.id } });
+  if (existingNotifs === 0) {
+    await prisma.notification.createMany({
+      data: [
+        {
+          tenantId: demoTenant.id,
+          type: "ORDER_CREATED",
+          title: "New order #0001",
+          body: "delivery · Bilal Demo",
+          href: `/${demoTenant.slug}/orders`,
+        },
+        {
+          tenantId: demoTenant.id,
+          type: "WHATSAPP_MESSAGE",
+          title: "WhatsApp from Sara Demo",
+          body: "Assalam-u-alaikum! I'd like to order a Zinger burger meal…",
+          href: `/${demoTenant.slug}/whatsapp`,
+        },
+        {
+          tenantId: demoTenant.id,
+          type: "LOW_STOCK",
+          title: "Burger bun running low",
+          body: "Check inventory to reorder.",
+          href: `/${demoTenant.slug}/inventory`,
+        },
+      ],
+    });
+  }
+
   console.log(`✓ Demo tenant: /${demoTenant.slug}`);
   console.log(`  Owner login: demo@easymenu.dev / Demo@123`);
   console.log(`  Rider login: rider@easymenu.dev / Rider@123`);

@@ -31,6 +31,8 @@ export default async function TenantLayout({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Topbar
+        tenantSlug={membership.tenantSlug}
+        tenantId={membership.tenantId}
         tenantName={membership.tenantName}
         userName={session.user.name}
         role={membership.role}
