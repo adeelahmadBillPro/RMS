@@ -117,6 +117,18 @@ export async function completeOnboardingAction(
         });
       }
 
+      // Create the default (primary) branch so order/inventory modules
+      // always have something to attach to.
+      await tx.branch.create({
+        data: {
+          tenantId: t.id,
+          name: "Main branch",
+          phone: data.contactPhone,
+          isPrimary: true,
+          isActive: true,
+        },
+      });
+
       return t;
     });
 

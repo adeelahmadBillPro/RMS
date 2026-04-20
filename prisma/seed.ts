@@ -110,6 +110,25 @@ async function main() {
     });
   }
 
+  // Default branch
+  const existingBranches = await prisma.branch.count({
+    where: { tenantId: demoTenant.id },
+  });
+  if (existingBranches === 0) {
+    await prisma.branch.create({
+      data: {
+        tenantId: demoTenant.id,
+        name: "Main branch",
+        address: "Plot 7, Block C, Karachi",
+        phone: "03001234567",
+        isPrimary: true,
+        isActive: true,
+        taxBps: 1700, // 17% GST
+        serviceBps: 0,
+      },
+    });
+  }
+
   console.log(`✓ Demo tenant: /${demoTenant.slug}`);
   console.log(`  Owner login: demo@easymenu.dev / Demo@123`);
 }

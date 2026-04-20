@@ -45,7 +45,10 @@
       "Bash(curl -s http://localhost:3100/signup)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git -c user.name=\"EasyMenu Dev\" -c user.email=\"dev@easymenu.dev\" commit -q -m \"chore: phase 1 baseline \\(auth, tenants, onboarding, super admin, design system\\)\")"
+      "Bash(git -c user.name=\"EasyMenu Dev\" -c user.email=\"dev@easymenu.dev\" commit -q -m \"chore: phase 1 baseline \\(auth, tenants, onboarding, super admin, design system\\)\")",
+      "Bash(powershell -Command 'Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne 8148 } | Select-Object Id, StartTime | Format-Table -AutoSize')",
+      "Bash(powershell -Command \"Stop-Process -Id 25224, 27212, 27216 -Force -ErrorAction SilentlyContinue\")",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(branches\\): multi-branch support per tenant *)"
     ]
   }
 }

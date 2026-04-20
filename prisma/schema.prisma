@@ -55,6 +55,9 @@ enum AuditAction {
   TRIAL_EXTENDED
   SUBSCRIPTION_CHANGED
   SETTINGS_UPDATED
+  BRANCH_CREATED
+  BRANCH_UPDATED
+  BRANCH_DELETED
 }
 
 // ----------------------------- AUTH ----------------------------------
@@ -150,10 +153,41 @@ model Tenant {
   memberships  TenantMembership[]
   subscription Subscription?
   categories   MenuCategorySeed[]
+  branches     Branch[]
   auditLogs    AuditLog[]
 
   @@index([slug])
   @@index([deletedAt])
+}
+
+// ----------------------------- BRANCHES ------------------------------
+
+model Branch {
+  id        String  @id @default(cuid())
+  tenantId  String
+  name      String
+  address   String?
+  phone     String?
+  isPrimary Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  // Business hours stored as JSON: { mon: ["09:00","23:00"], tue: ..., closed: ["sun"] }
+  // Phase 2 ships fields as nullable; UI uses sensible defaults until edited.
+  hoursJson Json?
+
+  // Default tax / service charge rates as percentage * 100 (e.g. 1700 = 17.00%)
+  taxBps     Int @default(0)
+  serviceBps Int @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, isPrimary])
 }
 
 model TenantMembership {
