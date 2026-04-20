@@ -1,9 +1,18 @@
 import Link from "next/link";
-import { ChefHat, Clock, ShieldCheck, Star, Utensils } from "lucide-react";
+import { Clock, ShieldCheck, Sparkles, Star, Utensils } from "lucide-react";
 import { APP } from "@/lib/config/app";
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1400&h=1800&fit=crop";
+// Multiple food photos tiled around the form for that real food-app feel.
+const BACKDROP_TILES = [
+  "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&h=600&fit=crop", // zinger burger
+  "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&h=600&fit=crop", // beef burger
+  "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&h=600&fit=crop", // fries
+  "https://images.unsplash.com/photo-1529042410759-befb1204b468?w=600&h=600&fit=crop", // shawarma
+  "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=600&fit=crop", // pizza
+  "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&h=600&fit=crop", // pizza slice
+  "https://images.unsplash.com/photo-1624552184280-9e9631bbeee9?w=600&h=600&fit=crop", // coke
+  "https://images.unsplash.com/photo-1612392166886-ee72c97bafd7?w=600&h=600&fit=crop", // fried chicken
+];
 
 const HIGHLIGHTS = [
   { icon: Utensils, label: "Menu live in 10 minutes" },
@@ -13,55 +22,61 @@ const HIGHLIGHTS = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[1.05fr_1fr]">
-      {/* LEFT — branded food hero (desktop only) */}
-      <aside className="relative hidden overflow-hidden lg:block">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={HERO_IMAGE}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        {/* Warm orange-ish tint over the photo for brand feel */}
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background/10 to-foreground/80"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-20 top-20 h-72 w-72 rounded-full bg-primary/40 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-10 bottom-10 h-80 w-80 rounded-full bg-primary/20 blur-3xl"
-        />
-
-        <div className="relative flex h-full flex-col p-10 text-white">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md">
-              <span className="font-mono text-sm">{APP.name.charAt(0)}</span>
-            </span>
-            <span className="drop-shadow">{APP.name}</span>
-          </Link>
-
-          <div className="mt-auto max-w-md animate-fade-in space-y-6">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs backdrop-blur">
-              <Star className="h-3 w-3 fill-white" />
-              Built for restaurants · cafes · fast food · bakeries
+    <div className="relative min-h-screen overflow-hidden bg-foreground">
+      {/* Full-bleed food collage backdrop */}
+      <div aria-hidden className="absolute inset-0">
+        <div className="grid h-full w-full grid-cols-4 grid-rows-2 gap-0.5 opacity-90">
+          {BACKDROP_TILES.map((src, i) => (
+            <div key={i} className="relative overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             </div>
-            <h2 className="text-3xl font-semibold leading-tight drop-shadow md:text-4xl">
-              Run your restaurant from{" "}
-              <span className="whitespace-nowrap underline decoration-primary decoration-4 underline-offset-4">
-                one calm, fast
-              </span>{" "}
-              workspace.
-            </h2>
-            <p className="text-sm text-white/80">
+          ))}
+        </div>
+        {/* Warm orange tint + dark vignette so the form is readable on top */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/60 via-foreground/70 to-foreground/90" />
+        <div className="pointer-events-none absolute -left-40 top-0 h-[600px] w-[600px] rounded-full bg-primary/40 blur-3xl" />
+        <div className="pointer-events-none absolute -right-40 bottom-0 h-[500px] w-[500px] rounded-full bg-primary/30 blur-3xl" />
+      </div>
+
+      {/* Brand mark top-left */}
+      <Link
+        href="/"
+        className="absolute left-6 top-6 z-20 flex items-center gap-2 text-white drop-shadow"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md">
+          <span className="font-mono text-base font-semibold">{APP.name.charAt(0)}</span>
+        </span>
+        <span className="font-semibold">{APP.name}</span>
+      </Link>
+
+      {/* Legend top-right (desktop only) */}
+      <div className="absolute right-6 top-6 z-20 hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs text-white backdrop-blur md:flex">
+        <Star className="h-3 w-3 fill-white" />
+        Built for restaurants, cafes, fast food, bakeries
+      </div>
+
+      {/* Centered form card */}
+      <main className="relative z-10 flex min-h-screen items-center justify-center p-4 py-16 md:py-10">
+        <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1fr_auto]">
+          {/* Marketing column (desktop only) */}
+          <aside className="hidden self-center pr-6 text-white lg:block">
+            <Sparkles className="h-8 w-8 text-primary-foreground drop-shadow" />
+            <h1 className="mt-4 text-5xl font-bold leading-tight drop-shadow">
+              Run your restaurant <br />
+              <span className="bg-gradient-to-r from-white to-primary-subtle bg-clip-text text-transparent">
+                from one calm workspace.
+              </span>
+            </h1>
+            <p className="mt-4 max-w-md text-sm text-white/90 drop-shadow">
               POS, KDS, inventory, recipes, delivery &amp; WhatsApp — one login.
               Your customers get a branded ordering site with live order tracking.
             </p>
-            <ul className="space-y-2.5">
+            <ul className="mt-6 space-y-2.5">
               {HIGHLIGHTS.map((h) => (
                 <li key={h.label} className="flex items-center gap-2 text-sm">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 backdrop-blur">
@@ -71,45 +86,21 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                 </li>
               ))}
             </ul>
-          </div>
+          </aside>
 
-          <p className="mt-10 text-xs text-white/60">
-            © {new Date().getFullYear()} {APP.legal.company}. All rights reserved.
-          </p>
-        </div>
-      </aside>
-
-      {/* RIGHT — form (full-width on mobile, half on desktop) */}
-      <main className="relative flex min-h-screen flex-col bg-surface lg:min-h-0">
-        {/* Mobile hero strip */}
-        <div className="relative h-40 overflow-hidden lg:hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={HERO_IMAGE} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
-          <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-foreground/10 to-surface" />
-          <div className="relative flex h-full items-end p-4">
-            <Link href="/" className="flex items-center gap-2 font-semibold text-white drop-shadow">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <span className="font-mono text-sm">{APP.name.charAt(0)}</span>
-              </span>
-              {APP.name}
-            </Link>
-          </div>
-        </div>
-
-        <div className="flex flex-1 items-center justify-center p-6 lg:p-10">
-          <div className="w-full max-w-sm animate-slide-up">
-            {/* Desktop brand (mirrors the mobile strip, simpler) */}
-            <Link
-              href="/"
-              className="mb-8 hidden items-center gap-2 text-sm font-semibold text-foreground-muted hover:text-foreground lg:inline-flex"
-            >
-              <ChefHat className="h-4 w-4 text-primary" />
-              Back to home
-            </Link>
-            {children}
+          {/* Form card — glass-morphism on top of food backdrop */}
+          <div className="w-full max-w-md animate-slide-up justify-self-center lg:justify-self-end">
+            <div className="rounded-3xl border border-white/20 bg-background/95 p-6 shadow-2xl backdrop-blur-xl md:p-8">
+              {children}
+            </div>
           </div>
         </div>
       </main>
+
+      {/* Footer band */}
+      <footer className="absolute inset-x-0 bottom-0 z-10 px-6 py-4 text-center text-[11px] text-white/70">
+        © {new Date().getFullYear()} {APP.legal.company} · All rights reserved
+      </footer>
     </div>
   );
 }

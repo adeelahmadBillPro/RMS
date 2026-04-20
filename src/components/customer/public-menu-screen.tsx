@@ -91,6 +91,44 @@ export function PublicMenuScreen(props: Props) {
   const subtotal = computeTotals({ lines: cart, taxBps: 0, serviceBps: 0 }).subtotalCents;
   const cartItemCount = cart.reduce((s, l) => s + l.quantity, 0);
 
+  // Qty-per-menu-item for the in-card "+ N −" quick controls
+  const cartQtyByItem = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of cart) map.set(l.menuItemId, (map.get(l.menuItemId) ?? 0) + l.quantity);
+    return map;
+  }, [cart]);
+
+  /** Decide: can we add this item to the cart in a single tap? */
+  function canQuickAdd(it: PublicItem): boolean {
+    // Quick add only when no variant choice needed AND no required modifier groups
+    if (it.variants.length !== 1) return false;
+    return !it.modifierGroups.some((g) => g.required);
+  }
+
+  /** Add one of the default variant of this item without opening the picker. */
+  function quickAdd(it: PublicItem) {
+    const v = it.variants.find((x) => x.isDefault) ?? it.variants[0]!;
+    const line: CartLine = {
+      lineKey: lineKey(v.id, []),
+      menuItemId: it.id,
+      variantId: v.id,
+      itemNameSnap: it.name,
+      variantNameSnap: v.name,
+      unitPriceCents: v.priceCents,
+      quantity: 1,
+      modifiers: [],
+    };
+    addLine(line);
+  }
+
+  /** Decrement count for the first matching line (the "no modifiers" one). */
+  function quickDecrement(it: PublicItem) {
+    const v = it.variants.find((x) => x.isDefault) ?? it.variants[0];
+    if (!v) return;
+    const key = lineKey(v.id, []);
+    bumpLine(key, -1);
+  }
+
   function addLine(line: CartLine) {
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.lineKey === line.lineKey);
@@ -234,15 +272,21 @@ export function PublicMenuScreen(props: Props) {
       <div className="container grid gap-4 py-6 pb-28 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filtered.map((it, i) => {
           const def = it.variants.find((v) => v.isDefault) ?? it.variants[0];
+          const qtyInCart = cartQtyByItem.get(it.id) ?? 0;
+          const quickAddable = canQuickAdd(it);
+          const hasOptions = it.variants.length > 1 || it.modifierGroups.length > 0;
           return (
-            <button
-              type="button"
+            <div
               key={it.id}
-              onClick={() => setPicker(it)}
               style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
-              className="group flex w-full animate-fade-in flex-col overflow-hidden rounded-2xl border border-border bg-surface text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md"
+              className="group relative flex w-full animate-fade-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md"
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
+              <button
+                type="button"
+                onClick={() => setPicker(it)}
+                className="relative aspect-[4/3] overflow-hidden bg-surface-muted text-left"
+                aria-label={`View ${it.name} options`}
+              >
                 {it.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -256,24 +300,91 @@ export function PublicMenuScreen(props: Props) {
                     <ImageIcon className="h-8 w-8 text-foreground-subtle" />
                   </div>
                 )}
-                <div className="absolute bottom-2 right-2 rounded-full bg-background/90 px-2.5 py-1 font-mono text-xs shadow-sm backdrop-blur">
+                <div className="absolute bottom-2 left-2 rounded-full bg-background/90 px-2.5 py-1 font-mono text-xs font-semibold shadow-sm backdrop-blur">
                   {def ? formatMoney(def.priceCents) : "—"}
                   {it.variants.length > 1 ? (
                     <span className="ml-1 text-foreground-muted">+{it.variants.length - 1}</span>
                   ) : null}
                 </div>
-              </div>
-              <div className="flex flex-1 flex-col p-3">
-                <p className="text-sm font-medium leading-tight group-hover:text-primary">
-                  {it.name}
-                </p>
-                {it.description ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-foreground-muted">
-                    {it.description}
-                  </p>
+                {qtyInCart > 0 ? (
+                  <span className="absolute left-2 top-2 flex h-7 min-w-[28px] animate-scale-in items-center justify-center rounded-full bg-primary px-2 text-xs font-bold leading-none text-primary-foreground shadow-md">
+                    {qtyInCart}
+                  </span>
                 ) : null}
+              </button>
+
+              <div className="flex flex-1 flex-col px-3 pb-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPicker(it)}
+                  className="text-left"
+                  aria-label={`View ${it.name} options`}
+                >
+                  <p className="text-sm font-medium leading-tight group-hover:text-primary">
+                    {it.name}
+                  </p>
+                  {it.description ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-foreground-muted">
+                      {it.description}
+                    </p>
+                  ) : null}
+                </button>
+
+                {/* Quick add controls — the whole point of the 'feels like a real app' fix */}
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  {hasOptions ? (
+                    <span className="text-[10px] font-medium text-foreground-muted">
+                      Customisable
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+
+                  {qtyInCart > 0 && quickAddable ? (
+                    <div className="flex items-center gap-1 rounded-full bg-primary-subtle p-1">
+                      <button
+                        type="button"
+                        onClick={() => quickDecrement(it)}
+                        aria-label="Decrease"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-background text-primary shadow-sm transition-transform hover:scale-110 active:scale-95"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="w-6 text-center font-mono text-sm font-bold text-primary">
+                        {qtyInCart}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => quickAdd(it)}
+                        aria-label="Increase"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-110 active:scale-95"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : quickAddable ? (
+                    <button
+                      type="button"
+                      onClick={() => quickAdd(it)}
+                      aria-label={`Add ${it.name}`}
+                      className="flex h-9 items-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPicker(it)}
+                      className="flex h-9 items-center gap-1 rounded-full border border-primary/40 bg-background px-3 text-xs font-semibold text-primary transition-all hover:bg-primary-subtle"
+                    >
+                      Choose
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -293,9 +404,29 @@ export function PublicMenuScreen(props: Props) {
 
       {/* Item picker */}
       <Dialog open={!!picker} onOpenChange={(o) => !o && setPicker(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           {picker ? (
-            <ItemPicker item={picker} onAdd={(line) => { addLine(line); setPicker(null); }} />
+            <ItemPicker
+              item={picker}
+              extras={props.items
+                .filter(
+                  (x) =>
+                    x.id !== picker.id &&
+                    x.variants.length > 0 &&
+                    !x.modifierGroups.some((g) => g.required),
+                )
+                // Prioritise items from a different category (sides / drinks)
+                .sort((a, b) => {
+                  const aSame = a.categoryId === picker.categoryId ? 1 : 0;
+                  const bSame = b.categoryId === picker.categoryId ? 1 : 0;
+                  return aSame - bSame;
+                })
+                .slice(0, 6)}
+              onAdd={(lines) => {
+                for (const l of lines) addLine(l);
+                setPicker(null);
+              }}
+            />
           ) : null}
         </DialogContent>
       </Dialog>
@@ -432,11 +563,30 @@ export function PublicMenuScreen(props: Props) {
   );
 }
 
-function ItemPicker({ item, onAdd }: { item: PublicItem; onAdd: (line: CartLine) => void }) {
+function ItemPicker({
+  item,
+  extras,
+  onAdd,
+}: {
+  item: PublicItem;
+  extras: PublicItem[];
+  onAdd: (lines: CartLine[]) => void;
+}) {
   const def = item.variants.find((v) => v.isDefault) ?? item.variants[0]!;
   const [variantId, setVariantId] = React.useState(def.id);
   const [selectedMods, setSelectedMods] = React.useState<Record<string, Set<string>>>({});
   const [qty, setQty] = React.useState(1);
+  // Map<extraItemId, extraQty>
+  const [extraQty, setExtraQty] = React.useState<Record<string, number>>({});
+
+  function bumpExtra(id: string, delta: number) {
+    setExtraQty((prev) => {
+      const next = { ...prev };
+      next[id] = Math.max(0, (next[id] ?? 0) + delta);
+      if (next[id] === 0) delete next[id];
+      return next;
+    });
+  }
 
   function toggleMod(group: ModifierGroup, modifierId: string) {
     setSelectedMods((prev) => {
@@ -470,7 +620,18 @@ function ItemPicker({ item, onAdd }: { item: PublicItem; onAdd: (line: CartLine)
       return { modifierId: m.id, modifierNameSnap: m.name, priceDeltaCents: m.priceDeltaCents };
     }),
   );
-  const total = (variant.priceCents + modList.reduce((s, m) => s + m.priceDeltaCents, 0)) * qty;
+  const mainLineTotal =
+    (variant.priceCents + modList.reduce((s, m) => s + m.priceDeltaCents, 0)) * qty;
+
+  // Total for all selected extras
+  const extrasTotal = Object.entries(extraQty).reduce((sum, [id, n]) => {
+    const ex = extras.find((x) => x.id === id);
+    if (!ex || n === 0) return sum;
+    const v = ex.variants.find((v) => v.isDefault) ?? ex.variants[0];
+    return sum + (v ? v.priceCents * n : 0);
+  }, 0);
+
+  const total = mainLineTotal + extrasTotal;
 
   return (
     <>
@@ -533,7 +694,80 @@ function ItemPicker({ item, onAdd }: { item: PublicItem; onAdd: (line: CartLine)
             </div>
           </div>
         ))}
+
+        {/* EXTRAS — upsell drinks, sides, sauces in the same modal */}
+        {extras.length > 0 ? (
+          <div className="rounded-xl border border-primary/30 bg-primary-subtle/40 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
+              <Plus className="h-3 w-3" />
+              Add something extra?
+            </p>
+            <ul className="space-y-1.5">
+              {extras.map((ex) => {
+                const v = ex.variants.find((x) => x.isDefault) ?? ex.variants[0];
+                if (!v) return null;
+                const n = extraQty[ex.id] ?? 0;
+                return (
+                  <li
+                    key={ex.id}
+                    className="flex items-center gap-2 rounded-lg bg-background p-2 transition-colors"
+                  >
+                    {ex.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={ex.photoUrl}
+                        alt=""
+                        className="h-10 w-10 flex-shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-surface-muted">
+                        <ImageIcon className="h-4 w-4 text-foreground-subtle" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{ex.name}</p>
+                      <p className="font-mono text-xs text-foreground-muted">
+                        {formatMoney(v.priceCents)}
+                      </p>
+                    </div>
+                    {n > 0 ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => bumpExtra(ex.id, -1)}
+                          aria-label="Decrease"
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-muted text-foreground transition-colors hover:bg-border active:scale-95"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="w-6 text-center font-mono text-sm font-semibold">{n}</span>
+                        <button
+                          type="button"
+                          onClick={() => bumpExtra(ex.id, 1)}
+                          aria-label="Increase"
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors active:scale-95"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => bumpExtra(ex.id, 1)}
+                        className="flex h-8 items-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </div>
+
       <DialogFooter>
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" onClick={() => setQty(Math.max(1, qty - 1))}>
@@ -548,16 +782,37 @@ function ItemPicker({ item, onAdd }: { item: PublicItem; onAdd: (line: CartLine)
           disabled={!allValid}
           onClick={() => {
             const modIds = modList.map((m) => m.modifierId);
-            onAdd({
-              lineKey: lineKey(variant.id, modIds),
-              menuItemId: item.id,
-              variantId: variant.id,
-              itemNameSnap: item.name,
-              variantNameSnap: variant.name,
-              unitPriceCents: variant.priceCents,
-              quantity: qty,
-              modifiers: modList,
-            });
+            const lines: CartLine[] = [
+              {
+                lineKey: lineKey(variant.id, modIds),
+                menuItemId: item.id,
+                variantId: variant.id,
+                itemNameSnap: item.name,
+                variantNameSnap: variant.name,
+                unitPriceCents: variant.priceCents,
+                quantity: qty,
+                modifiers: modList,
+              },
+            ];
+            // Append each selected extra as its own cart line
+            for (const [id, n] of Object.entries(extraQty)) {
+              if (n <= 0) continue;
+              const ex = extras.find((x) => x.id === id);
+              if (!ex) continue;
+              const v = ex.variants.find((x) => x.isDefault) ?? ex.variants[0];
+              if (!v) continue;
+              lines.push({
+                lineKey: lineKey(v.id, []),
+                menuItemId: ex.id,
+                variantId: v.id,
+                itemNameSnap: ex.name,
+                variantNameSnap: v.name,
+                unitPriceCents: v.priceCents,
+                quantity: n,
+                modifiers: [],
+              });
+            }
+            onAdd(lines);
           }}
         >
           Add · {formatMoney(total)}
