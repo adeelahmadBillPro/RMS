@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth.schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { FieldError, FormField } from "@/components/ui/form-field";
 
@@ -79,9 +80,8 @@ export function LoginForm() {
             Forgot?
           </Link>
         </div>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           invalid={!!errors.password}
           {...register("password")}

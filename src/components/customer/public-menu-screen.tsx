@@ -74,7 +74,7 @@ export function PublicMenuScreen(props: Props) {
   const [checkout, setCheckout] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState<{ orderNumber: number } | null>(null);
+  const [success, setSuccess] = React.useState<{ orderNumber: number; trackingId: string } | null>(null);
 
   const [channel, setChannel] = React.useState<"DINE_IN" | "TAKEAWAY" | "DELIVERY">(
     props.mode === "table" ? "DINE_IN" : props.defaultChannel,
@@ -141,11 +141,12 @@ export function PublicMenuScreen(props: Props) {
       if (res.fieldErrors) setFieldErrors(res.fieldErrors);
       return;
     }
-    setSuccess({ orderNumber: res.data.orderNumber });
+    setSuccess({ orderNumber: res.data.orderNumber, trackingId: res.data.trackingId });
     setCart([]);
     setCheckout(false);
     setCartOpen(false);
-    router.refresh();
+    // Navigate to the tracking page so the customer can watch their order live.
+    router.push(`/r/${props.slug}/order/${res.data.trackingId}`);
   }
 
   if (success) {
@@ -230,33 +231,47 @@ export function PublicMenuScreen(props: Props) {
       </nav>
 
       {/* Items */}
-      <div className="container space-y-2 py-4 pb-24">
-        {filtered.map((it) => {
+      <div className="container grid gap-4 py-6 pb-28 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {filtered.map((it, i) => {
           const def = it.variants.find((v) => v.isDefault) ?? it.variants[0];
           return (
             <button
               type="button"
               key={it.id}
               onClick={() => setPicker(it)}
-              className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-primary"
+              style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
+              className="group flex w-full animate-fade-in flex-col overflow-hidden rounded-2xl border border-border bg-surface text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md"
             >
-              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-muted">
+              <div className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
                 {it.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={it.photoUrl} alt={it.name} className="h-full w-full object-cover" />
+                  <img
+                    src={it.photoUrl}
+                    alt={it.name}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
                 ) : (
-                  <ImageIcon className="h-5 w-5 text-foreground-subtle" />
+                  <div className="flex h-full w-full items-center justify-center">
+                    <ImageIcon className="h-8 w-8 text-foreground-subtle" />
+                  </div>
                 )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-tight">{it.name}</p>
-                {it.description ? (
-                  <p className="mt-0.5 truncate text-xs text-foreground-muted">{it.description}</p>
-                ) : null}
-                <p className="mt-1 font-mono text-sm">
+                <div className="absolute bottom-2 right-2 rounded-full bg-background/90 px-2.5 py-1 font-mono text-xs shadow-sm backdrop-blur">
                   {def ? formatMoney(def.priceCents) : "—"}
-                  {it.variants.length > 1 ? <span className="ml-1 text-xs text-foreground-muted">+{it.variants.length - 1}</span> : null}
+                  {it.variants.length > 1 ? (
+                    <span className="ml-1 text-foreground-muted">+{it.variants.length - 1}</span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex flex-1 flex-col p-3">
+                <p className="text-sm font-medium leading-tight group-hover:text-primary">
+                  {it.name}
                 </p>
+                {it.description ? (
+                  <p className="mt-1 line-clamp-2 text-xs text-foreground-muted">
+                    {it.description}
+                  </p>
+                ) : null}
               </div>
             </button>
           );

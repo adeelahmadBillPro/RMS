@@ -9,6 +9,7 @@ import { signupSchema, type SignupInput } from "@/lib/validations/auth.schema";
 import { signupAction } from "@/server/actions/auth.actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { FieldError, FormField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/use-toast";
@@ -100,9 +101,8 @@ export function SignupForm() {
         <Label htmlFor="password" required>
           Password
         </Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           invalid={!!errors.password}
           {...register("password")}
@@ -114,9 +114,8 @@ export function SignupForm() {
         <Label htmlFor="confirmPassword" required>
           Confirm password
         </Label>
-        <Input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           autoComplete="new-password"
           invalid={!!errors.confirmPassword}
           {...register("confirmPassword")}

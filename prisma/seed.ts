@@ -59,12 +59,19 @@ async function main() {
 
   const demoTenant = await prisma.tenant.upsert({
     where: { slug: "burgerhub" },
-    update: {},
+    update: {
+      logoUrl:
+        "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=200&fit=crop&crop=entropy",
+      brandColor: "#EA580C",
+    },
     create: {
       slug: "burgerhub",
       name: "Burger Hub",
       cuisineType: "FAST_FOOD",
       contactPhone: "03001234567",
+      logoUrl:
+        "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=200&fit=crop&crop=entropy",
+      brandColor: "#EA580C",
       hasDelivery: true,
       hasTakeaway: true,
       acceptCash: true,
@@ -120,6 +127,8 @@ async function main() {
         categoryId: burgers.id,
         name: "Zinger Burger",
         description: "Crispy chicken fillet, lettuce, mayo.",
+        photoUrl:
+          "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&h=600&fit=crop",
         prepTimeMinutes: 8,
         sortOrder: 0,
         variants: {
@@ -156,6 +165,8 @@ async function main() {
         categoryId: burgers.id,
         name: "Classic Beef Burger",
         description: "Beef patty, cheddar, pickles.",
+        photoUrl:
+          "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=800&h=600&fit=crop",
         prepTimeMinutes: 10,
         sortOrder: 1,
         variants: { create: [{ name: "Regular", priceCents: 65000, isDefault: true }] },
@@ -168,6 +179,9 @@ async function main() {
         tenantId: demoTenant.id,
         categoryId: wraps.id,
         name: "Chicken Shawarma",
+        description: "Marinated chicken, garlic sauce, soft flatbread.",
+        photoUrl:
+          "https://images.unsplash.com/photo-1529042410759-befb1204b468?w=800&h=600&fit=crop",
         prepTimeMinutes: 6,
         variants: {
           create: [
@@ -201,6 +215,9 @@ async function main() {
         tenantId: demoTenant.id,
         categoryId: sides.id,
         name: "French Fries",
+        description: "Golden, crispy, salted to perfection.",
+        photoUrl:
+          "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=800&h=600&fit=crop",
         prepTimeMinutes: 4,
         variants: {
           create: [
@@ -217,6 +234,9 @@ async function main() {
         tenantId: demoTenant.id,
         categoryId: drinks.id,
         name: "Coca-Cola",
+        description: "Ice-cold, straight from the chiller.",
+        photoUrl:
+          "https://images.unsplash.com/photo-1624552184280-9e9631bbeee9?w=800&h=600&fit=crop",
         prepTimeMinutes: 1,
         variants: {
           create: [
@@ -225,6 +245,37 @@ async function main() {
           ],
         },
       },
+    });
+  }
+
+  // Always refresh demo item photos + descriptions on each seed run so
+  // already-seeded dev DBs pick up new Unsplash URLs without a reset.
+  const demoPhotos: Record<string, { photoUrl: string; description?: string }> = {
+    "Zinger Burger": {
+      photoUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&h=600&fit=crop",
+      description: "Crispy chicken fillet, lettuce, mayo.",
+    },
+    "Classic Beef Burger": {
+      photoUrl: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=800&h=600&fit=crop",
+      description: "Beef patty, cheddar, pickles.",
+    },
+    "Chicken Shawarma": {
+      photoUrl: "https://images.unsplash.com/photo-1529042410759-befb1204b468?w=800&h=600&fit=crop",
+      description: "Marinated chicken, garlic sauce, soft flatbread.",
+    },
+    "French Fries": {
+      photoUrl: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=800&h=600&fit=crop",
+      description: "Golden, crispy, salted to perfection.",
+    },
+    "Coca-Cola": {
+      photoUrl: "https://images.unsplash.com/photo-1624552184280-9e9631bbeee9?w=800&h=600&fit=crop",
+      description: "Ice-cold, straight from the chiller.",
+    },
+  };
+  for (const [name, data] of Object.entries(demoPhotos)) {
+    await prisma.menuItem.updateMany({
+      where: { tenantId: demoTenant.id, name, deletedAt: null },
+      data: { photoUrl: data.photoUrl, description: data.description ?? null },
     });
   }
 

@@ -226,28 +226,38 @@ export function POSScreen({
 
         <div className="flex-1 overflow-y-auto p-3">
           <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-            {filtered.map((it) => {
+            {filtered.map((it, i) => {
               const def = it.variants.find((v) => v.isDefault) ?? it.variants[0];
               return (
                 <button
                   key={it.id}
                   type="button"
                   onClick={() => setPicker(it)}
-                  className="flex flex-col rounded-xl border border-border bg-surface p-2 text-left transition-colors hover:border-primary"
+                  style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                  className="group flex animate-fade-in flex-col overflow-hidden rounded-xl border border-border bg-surface text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
                 >
-                  <div className="mb-2 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-surface-muted">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
                     {it.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.photoUrl} alt={it.name} className="h-full w-full object-cover" />
+                      <img
+                        src={it.photoUrl}
+                        alt={it.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                      />
                     ) : (
-                      <ImageIcon className="h-6 w-6 text-foreground-subtle" />
+                      <div className="flex h-full w-full items-center justify-center">
+                        <ImageIcon className="h-6 w-6 text-foreground-subtle" />
+                      </div>
                     )}
                   </div>
-                  <p className="text-sm font-medium leading-tight">{it.name}</p>
-                  <p className="mt-0.5 font-mono text-xs text-foreground-muted">
-                    {def ? formatMoney(def.priceCents) : "—"}
-                    {it.variants.length > 1 ? <span className="ml-1">+{it.variants.length - 1}</span> : null}
-                  </p>
+                  <div className="p-2">
+                    <p className="text-sm font-medium leading-tight">{it.name}</p>
+                    <p className="mt-0.5 font-mono text-xs text-foreground-muted">
+                      {def ? formatMoney(def.priceCents) : "—"}
+                      {it.variants.length > 1 ? <span className="ml-1">+{it.variants.length - 1}</span> : null}
+                    </p>
+                  </div>
                 </button>
               );
             })}
