@@ -73,7 +73,9 @@
       "Bash(curl -s -I http://localhost:3100/burgerhub/pos)",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(pos\\): match ClaPos reference more precisely *)",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(admin\\): food-app polish for dashboard + menu categories *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3100/api/health)",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(customer\\): full food-app landing \\\\u2014 hero carousel, category strip, popular items, deal banner *)"
     ]
   }
 }
