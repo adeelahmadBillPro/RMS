@@ -232,8 +232,9 @@ async function main() {
   const existingBranches = await prisma.branch.count({
     where: { tenantId: demoTenant.id },
   });
+  let primaryBranchId: string;
   if (existingBranches === 0) {
-    await prisma.branch.create({
+    const b = await prisma.branch.create({
       data: {
         tenantId: demoTenant.id,
         name: "Main branch",
@@ -245,6 +246,30 @@ async function main() {
         serviceBps: 0,
       },
     });
+    primaryBranchId = b.id;
+  } else {
+    const b = await prisma.branch.findFirstOrThrow({
+      where: { tenantId: demoTenant.id, isPrimary: true },
+      select: { id: true },
+    });
+    primaryBranchId = b.id;
+  }
+
+  // Seed a few tables so QR ordering works out of the box.
+  const existingTables = await prisma.restaurantTable.count({
+    where: { tenantId: demoTenant.id },
+  });
+  if (existingTables === 0) {
+    for (let i = 1; i <= 4; i++) {
+      await prisma.restaurantTable.create({
+        data: {
+          tenantId: demoTenant.id,
+          branchId: primaryBranchId,
+          label: `T-${i}`,
+          seats: i % 2 === 0 ? 4 : 2,
+        },
+      });
+    }
   }
 
   // Inventory: supplier + ingredients + recipes

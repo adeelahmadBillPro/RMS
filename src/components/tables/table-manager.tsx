@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Pencil, Plus, Table2, Trash2 } from "lucide-react";
+import { Pencil, Plus, QrCode, Table2, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FieldError, FormField } from "@/components/ui/form-field";
 import { EmptyState } from "@/components/ui/states/empty-state";
 import { useToast } from "@/components/ui/use-toast";
@@ -60,6 +60,12 @@ export function TableManager({
   const { toast } = useToast();
   const [creating, setCreating] = React.useState(false);
   const [editing, setEditing] = React.useState<TableRow | null>(null);
+  const [qrPreview, setQrPreview] = React.useState<TableRow | null>(null);
+
+  function publicTableUrl(t: TableRow) {
+    if (typeof window === "undefined") return `/r/${slug}/t/${t.qrCode}`;
+    return `${window.location.origin}/r/${slug}/t/${t.qrCode}`;
+  }
 
   if (tables.length === 0 && !creating) {
     return (
@@ -132,6 +138,9 @@ export function TableManager({
                   </button>
                 ))}
                 <div className="ml-auto flex gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => setQrPreview(t)} aria-label="Show QR code">
+                    <QrCode className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => setEditing(t)} aria-label="Edit table">
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -160,6 +169,59 @@ export function TableManager({
               initial={editing}
               onDone={() => setEditing(null)}
             />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!qrPreview} onOpenChange={(o) => !o && setQrPreview(null)}>
+        <DialogContent>
+          {qrPreview ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>QR code · {qrPreview.label}</DialogTitle>
+                <DialogDescription>
+                  Customers scan this to land on the menu pre-attached to this table.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-3 py-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/qr?content=${encodeURIComponent(publicTableUrl(qrPreview))}&size=320`}
+                  alt={`QR code for ${qrPreview.label}`}
+                  className="rounded-lg border border-border"
+                  width={320}
+                  height={320}
+                />
+                <a
+                  href={publicTableUrl(qrPreview)}
+                  target="_blank"
+                  rel="noopener"
+                  className="break-all text-center font-mono text-xs text-primary hover:underline"
+                >
+                  {publicTableUrl(qrPreview)}
+                </a>
+                <div className="flex gap-2">
+                  <Button asChild size="sm" variant="secondary">
+                    <a href={publicTableUrl(qrPreview)} target="_blank" rel="noopener">
+                      Open in new tab
+                    </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const win = window.open("", "_blank");
+                      if (!win) return;
+                      win.document.write(`<!DOCTYPE html><html><head><title>QR ${qrPreview.label}</title>
+<style>body{display:flex;flex-direction:column;align-items:center;font-family:sans-serif;padding:40px}h1{margin:0 0 8px}p{font-family:monospace;font-size:11px;color:#666;word-break:break-all;text-align:center;margin-top:8px}</style>
+</head><body><h1>${qrPreview.label}</h1><img src="/api/qr?content=${encodeURIComponent(publicTableUrl(qrPreview))}&size=512" width="320" /><p>${publicTableUrl(qrPreview)}</p><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`);
+                      win.document.close();
+                    }}
+                  >
+                    Print
+                  </Button>
+                </div>
+              </div>
+            </>
           ) : null}
         </DialogContent>
       </Dialog>

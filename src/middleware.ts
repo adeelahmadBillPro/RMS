@@ -19,7 +19,9 @@ function isPublic(pathname: string) {
   if (pathname.startsWith("/_next")) return true;
   if (pathname.startsWith("/api/auth")) return true;
   if (pathname === "/api/health") return true;
-  if (pathname.startsWith("/r/")) return true; // public ordering pages (Phase 2)
+  if (pathname.startsWith("/api/qr")) return true; // QR code PNG generator (Phase 3)
+  if (pathname.startsWith("/api/webhooks/")) return true; // external webhooks (Phase 3+)
+  if (pathname.startsWith("/r/")) return true; // public ordering pages (Phase 3)
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 

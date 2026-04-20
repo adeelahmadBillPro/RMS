@@ -52,7 +52,14 @@
       "Bash(powershell -Command 'Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne 8148 } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }')",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(menu\\): categories, items, variants, modifier groups & modifiers *)",
       "Bash(pnpm add *)",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(orders,pos,kds\\): tables, orders, POS, KDS, payments & Pusher *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(orders,pos,kds\\): tables, orders, POS, KDS, payments & Pusher *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs -I {} powershell -Command \"Stop-Process -Id {} -Force -ErrorAction SilentlyContinue\")",
+      "Bash(psql -U postgres -h localhost -d easymenu_db -tAc \"SELECT \\\\\"qrCode\\\\\" FROM \\\\\"RestaurantTable\\\\\" LIMIT 1\")",
+      "Bash(curl -s -o /dev/null -w '/r/burgerhub/t/<qr> HTTP %{http_code}\\\\n' http://localhost:3100/r/burgerhub/t/__TRACKED_VAR__)"
     ]
   }
 }
