@@ -190,7 +190,9 @@ export function WhatsAppInbox({
                         <Badge variant="success">Order</Badge>
                       ) : null}
                       {t.unreadCount > 0 ? (
-                        <Badge variant="primary">{t.unreadCount} new</Badge>
+                        <Badge variant="primary" pulse>
+                          {t.unreadCount} new
+                        </Badge>
                       ) : null}
                     </div>
                   </div>

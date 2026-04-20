@@ -283,7 +283,7 @@ export function PublicMenuScreen(props: Props) {
         <button
           type="button"
           onClick={() => setCartOpen(true)}
-          className="fixed bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-md transition-colors hover:bg-primary-hover"
+          className="fixed bottom-4 left-1/2 z-20 flex -translate-x-1/2 animate-scale-in items-center gap-3 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-lg active:scale-[0.97]"
         >
           <ShoppingBag className="h-4 w-4" />
           {cartItemCount} {cartItemCount === 1 ? "item" : "items"}
