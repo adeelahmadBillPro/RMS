@@ -7,27 +7,27 @@ import {
   ArrowLeft,
   Beef,
   Coffee,
-  CreditCard,
   IceCream,
   Image as ImageIcon,
   LayoutGrid,
+  Menu as MenuIcon,
   Minus,
   Percent,
   Pizza,
   Plus,
+  Receipt,
   Salad,
   Sandwich,
-  Save,
   Search,
   ShoppingBag,
   Soup,
+  StickyNote,
   Table2,
   Trash2,
   Truck,
   User,
   Utensils,
   UtensilsCrossed,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -227,39 +227,37 @@ export function POSScreen({
   return (
     <div className="flex h-screen flex-col bg-surface-muted/40">
       {/* Top bar */}
-      <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-border bg-background px-3">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/${slug}`}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-foreground-muted hover:bg-surface-muted"
-            aria-label="Dashboard"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Utensils className="h-4 w-4" />
-            </span>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold">{tenantName}</p>
-              <p className="font-mono text-[10px] text-foreground-muted">POS · {branch.name}</p>
-            </div>
+      <header className="flex h-16 flex-shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+        <Link
+          href={`/${slug}`}
+          className="flex h-9 w-9 items-center justify-center rounded-md text-foreground-muted hover:bg-surface-muted"
+          aria-label="Back to dashboard"
+        >
+          <MenuIcon className="h-5 w-5" />
+        </Link>
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Utensils className="h-4 w-4" />
+          </span>
+          <div className="leading-tight">
+            <p className="text-sm font-semibold">{tenantName}</p>
+            <p className="font-mono text-[10px] text-foreground-muted">POS · {branch.name}</p>
           </div>
         </div>
 
-        <div className="mx-6 hidden flex-1 max-w-md md:block">
+        <div className="mx-auto hidden w-full max-w-xl md:block">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-subtle" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-subtle" />
             <Input
-              className="h-10 rounded-full pl-9"
-              placeholder="Search products…"
+              className="h-10 rounded-full bg-surface-muted/70 pl-10 placeholder:text-foreground-subtle"
+              placeholder="Search Product…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {branches.length > 1 ? (
             <select
               value={branchId}
@@ -273,16 +271,22 @@ export function POSScreen({
               ))}
             </select>
           ) : null}
+          <Link
+            href={`/${slug}`}
+            className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs text-foreground-muted hover:bg-surface-muted hover:text-foreground md:inline-flex"
+          >
+            <ArrowLeft className="h-3 w-3" /> Exit
+          </Link>
         </div>
       </header>
 
       {/* Body: 3-column layout */}
       <div className="flex min-h-0 flex-1">
-        {/* LEFT: category rail */}
-        <aside className="flex w-24 flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-background p-2">
+        {/* LEFT: category rail — white elevated cards, ClaPos-style */}
+        <aside className="flex w-28 flex-shrink-0 flex-col gap-2 overflow-y-auto border-r border-border bg-background p-3">
           <CategoryButton
             icon={LayoutGrid}
-            label="All"
+            label="All Menu"
             active={activeCategory === "all"}
             onClick={() => setActiveCategory("all")}
           />
@@ -334,12 +338,9 @@ export function POSScreen({
                       type="button"
                       onClick={() => setPicker(it)}
                       style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
-                      className={cn(
-                        "group relative flex animate-fade-in flex-col overflow-hidden rounded-2xl bg-background text-left shadow-sm ring-1 ring-border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]",
-                        qtyInCart > 0 && "ring-2 ring-primary",
-                      )}
+                      className="group relative flex animate-fade-in flex-col overflow-hidden rounded-2xl bg-background text-center transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
                     >
-                      <div className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
+                      <div className="relative aspect-square overflow-hidden rounded-2xl bg-surface-muted">
                         {it.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -353,34 +354,35 @@ export function POSScreen({
                             <ImageIcon className="h-7 w-7 text-foreground-subtle" />
                           </div>
                         )}
-                        {qtyInCart > 0 ? (
-                          <span className="absolute right-2 top-2 flex h-7 min-w-[28px] animate-scale-in items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground shadow-md">
-                            {qtyInCart}
-                          </span>
-                        ) : null}
                       </div>
-                      <div className="p-3">
+                      <div className="px-1 pt-3">
                         <p className="line-clamp-1 text-sm font-medium leading-tight">
                           {it.name}
                         </p>
-                        <p className="mt-1 flex items-center gap-1 font-mono text-xs text-foreground-muted">
-                          <span className="text-foreground">
+                        <div className="mt-1 flex items-center justify-center gap-2">
+                          <span className="font-mono text-sm text-foreground">
                             {def ? formatMoney(def.priceCents) : "—"}
                           </span>
-                          {it.variants.length > 1 ? (
-                            <span className="text-foreground-subtle">
-                              · +{it.variants.length - 1} size
-                              {it.variants.length > 2 ? "s" : ""}
+                          {qtyInCart > 0 ? (
+                            <span className="flex h-5 min-w-[20px] animate-scale-in items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-none text-primary-foreground shadow-sm">
+                              {qtyInCart}
                             </span>
                           ) : null}
-                        </p>
+                        </div>
+                        {it.variants.length > 1 ? (
+                          <p className="mt-0.5 text-[10px] text-foreground-subtle">
+                            +{it.variants.length - 1} size{it.variants.length > 2 ? "s" : ""}
+                          </p>
+                        ) : null}
                       </div>
-                      {qtyInCart > 0 ? (
-                        <span
-                          aria-hidden
-                          className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary"
-                        />
-                      ) : null}
+                      {/* Orange underline bar under the card when in cart */}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "mx-auto mt-3 h-0.5 rounded-full transition-all duration-200",
+                          qtyInCart > 0 ? "w-16 bg-primary" : "w-0 bg-transparent",
+                        )}
+                      />
                     </button>
                   );
                 })}
@@ -389,10 +391,10 @@ export function POSScreen({
           </div>
         </div>
 
-        {/* RIGHT: order summary */}
-        <aside className="hidden w-[360px] flex-shrink-0 flex-col border-l border-border bg-background lg:flex">
-          {/* Quick action buttons */}
-          <div className="grid grid-cols-4 gap-2 border-b border-border p-3">
+        {/* RIGHT: order summary — ClaPos-style */}
+        <aside className="hidden w-[380px] flex-shrink-0 flex-col border-l border-border bg-background lg:flex">
+          {/* 2×2 quick-action tiles */}
+          <div className="grid grid-cols-2 gap-3 border-b border-border p-4">
             <QuickAction
               icon={User}
               label="Customer"
@@ -409,74 +411,56 @@ export function POSScreen({
             <QuickAction
               icon={Percent}
               label="Discount"
-              active={discountRupees > 0}
+              active={discountRupees > 0 || tipRupees > 0 || deliveryRupees > 0}
               onClick={() => setOpenPopover("discount")}
             />
             <QuickAction
-              icon={Save}
+              icon={StickyNote}
               label="Notes"
               active={!!orderNotes}
               onClick={() => setOpenPopover("notes")}
             />
           </div>
 
-          {/* Channel toggle */}
-          <div className="border-b border-border p-3">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-foreground-muted">
-              Order type
-            </p>
-            <div className="flex rounded-full bg-surface-muted p-1">
-              <ChannelPill active={channel === "DINE_IN"} onClick={() => setChannel("DINE_IN")} icon={Utensils}>
-                Dine In
-              </ChannelPill>
-              {hasTakeaway ? (
-                <ChannelPill
-                  active={channel === "TAKEAWAY"}
-                  onClick={() => setChannel("TAKEAWAY")}
-                  icon={ShoppingBag}
-                >
-                  Takeaway
-                </ChannelPill>
-              ) : null}
-              {hasDelivery ? (
-                <ChannelPill
-                  active={channel === "DELIVERY"}
-                  onClick={() => setChannel("DELIVERY")}
-                  icon={Truck}
-                >
-                  Delivery
-                </ChannelPill>
-              ) : null}
-            </div>
-            {channel === "DINE_IN" && tableId ? (
-              <p className="mt-2 text-xs text-foreground-muted">
-                Table: <span className="font-medium text-foreground">
-                  {branchTables.find((t) => t.id === tableId)?.label}
-                </span>
-              </p>
+          {/* Heading + channel tabs */}
+          <div className="flex items-center justify-between px-5 pb-2 pt-4">
+            <h2 className="text-lg font-semibold">Order Details</h2>
+          </div>
+          <div className="flex gap-6 border-b border-border px-5 pb-2 text-sm">
+            <ChannelTab active={channel === "DINE_IN"} onClick={() => setChannel("DINE_IN")}>
+              Dine In
+            </ChannelTab>
+            {hasTakeaway ? (
+              <ChannelTab active={channel === "TAKEAWAY"} onClick={() => setChannel("TAKEAWAY")}>
+                Take Away
+              </ChannelTab>
             ) : null}
-            {channel === "DELIVERY" && customerPhone && deliveryAddress ? (
-              <p className="mt-2 line-clamp-1 text-xs text-foreground-muted">
-                {customerName || customerPhone} · <span className="text-foreground">{deliveryAddress}</span>
-              </p>
+            {hasDelivery ? (
+              <ChannelTab active={channel === "DELIVERY"} onClick={() => setChannel("DELIVERY")}>
+                Delivery
+              </ChannelTab>
             ) : null}
           </div>
 
-          {/* Cart */}
+          {/* Context line (only when set) */}
+          {channel === "DINE_IN" && tableId ? (
+            <p className="px-5 py-2 text-xs text-foreground-muted">
+              Table:{" "}
+              <span className="font-medium text-foreground">
+                {branchTables.find((t) => t.id === tableId)?.label}
+              </span>
+            </p>
+          ) : null}
+          {channel === "DELIVERY" && customerPhone && deliveryAddress ? (
+            <p className="line-clamp-1 px-5 py-2 text-xs text-foreground-muted">
+              {customerName || customerPhone} ·{" "}
+              <span className="text-foreground">{deliveryAddress}</span>
+            </p>
+          ) : null}
+
+          {/* Cart list */}
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex items-center justify-between px-4 pt-3">
-              <h2 className="text-sm font-medium">Order details</h2>
-              {cart.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={resetOrder}
-                  className="text-xs text-foreground-muted hover:text-danger"
-                >
-                  Clear
-                </button>
-              ) : null}
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-2">
+            <div className="flex-1 overflow-y-auto px-5 py-3">
               {cart.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center py-10 text-center">
                   <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-subtle text-primary">
@@ -488,25 +472,30 @@ export function POSScreen({
                   </p>
                 </div>
               ) : (
-                <ul className="space-y-1">
+                <ul className="divide-y divide-border">
                   {cart.map((l) => {
                     const lineSub =
                       (l.unitPriceCents +
                         l.modifiers.reduce((s, m) => s + m.priceDeltaCents, 0)) *
                       l.quantity;
                     return (
-                      <li key={l.lineKey} className="group rounded-lg py-2 transition-colors hover:bg-surface-muted/60">
+                      <li
+                        key={l.lineKey}
+                        className="group py-3 transition-colors hover:bg-surface-muted/50"
+                      >
                         <div className="flex items-start gap-2">
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium leading-tight">
+                            <p className="text-sm font-semibold leading-tight">
                               {l.itemNameSnap}
                             </p>
-                            <p className="mt-0.5 flex items-center gap-1 font-mono text-xs text-foreground-muted">
-                              <span>×{l.quantity}</span>
-                              <span>·</span>
-                              <span>{formatMoney(l.unitPriceCents)}</span>
+                            <p className="mt-1 font-mono text-xs text-foreground-muted">
+                              <span className="font-semibold">×{l.quantity}</span>{" "}
+                              <span className="text-foreground-subtle">
+                                {formatMoney(l.unitPriceCents)}
+                              </span>
                               {l.modifiers.length > 0 ? (
                                 <span className="text-foreground-subtle">
+                                  {" "}
                                   · +{l.modifiers.length} add-on{l.modifiers.length > 1 ? "s" : ""}
                                 </span>
                               ) : null}
@@ -518,9 +507,11 @@ export function POSScreen({
                                 : ""}
                             </p>
                           </div>
-                          <p className="font-mono text-sm">{formatMoney(lineSub)}</p>
+                          <p className="font-mono text-sm font-semibold">
+                            {formatMoney(lineSub)}
+                          </p>
                         </div>
-                        <div className="mt-1 flex items-center gap-1 opacity-70 transition-opacity group-hover:opacity-100">
+                        <div className="mt-1.5 flex items-center gap-1 opacity-80 transition-opacity group-hover:opacity-100">
                           <button
                             type="button"
                             onClick={() => bumpLine(l.lineKey, -1)}
@@ -554,9 +545,22 @@ export function POSScreen({
               )}
             </div>
 
-            {/* Totals */}
-            <div className="border-t border-border p-4">
-              <dl className="space-y-1 text-xs">
+            {/* Clear All Order — ClaPos style outlined button */}
+            {cart.length > 0 ? (
+              <div className="border-t border-border px-5 py-3">
+                <button
+                  type="button"
+                  onClick={resetOrder}
+                  className="h-10 w-full rounded-xl border border-border bg-background text-sm font-medium text-foreground-muted transition-colors hover:border-danger/50 hover:text-danger"
+                >
+                  Clear All Order
+                </button>
+              </div>
+            ) : null}
+
+            {/* Totals card */}
+            <div className="border-t border-border bg-surface-muted/40 px-5 py-4">
+              <dl className="space-y-1.5 text-sm">
                 <Row label="Subtotal" value={formatMoney(totals.subtotalCents)} />
                 {totals.discountCents > 0 ? (
                   <Row
@@ -584,22 +588,24 @@ export function POSScreen({
                   <Row label="Delivery" value={formatMoney(totals.deliveryChargeCents)} />
                 ) : null}
               </dl>
-
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-primary-subtle/60 px-4 py-3">
-                <span className="text-sm font-medium">Total</span>
-                <span className="font-mono text-2xl font-semibold text-primary">
+              <div className="mt-3 flex items-end justify-between border-t border-border pt-3">
+                <span className="text-base font-semibold">Total</span>
+                <span className="font-mono text-3xl font-bold">
                   {formatMoney(totals.totalCents)}
                 </span>
               </div>
+            </div>
 
+            {/* Process Transaction pill — the big call-to-action */}
+            <div className="px-5 pb-5 pt-3">
               <Button
-                className="mt-3 h-12 w-full text-base"
+                className="h-14 w-full rounded-full text-base font-semibold shadow-md"
                 disabled={sendDisabled}
                 loading={submitting}
                 onClick={submit}
               >
-                <CreditCard className="h-4 w-4" />
-                Send to kitchen
+                <Receipt className="h-5 w-5" />
+                Process Transaction
               </Button>
               {sendDisabled && cart.length > 0 ? (
                 <p className="mt-2 text-center text-[11px] text-warning">
@@ -839,13 +845,20 @@ function CategoryButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "group flex flex-col items-center gap-1 rounded-xl px-1 py-3 text-[10px] font-medium leading-tight transition-all duration-150",
+        "group flex flex-col items-center gap-1.5 rounded-2xl px-2 py-4 text-[11px] font-medium leading-tight transition-all duration-150 active:scale-95",
         active
-          ? "bg-primary text-primary-foreground shadow-sm"
-          : "text-foreground-muted hover:bg-surface-muted hover:text-foreground",
+          ? "border-l-[3px] border-primary bg-background text-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.04),0_2px_8px_-2px_rgba(0,0,0,0.08)]"
+          : "border-l-[3px] border-transparent text-foreground-muted hover:bg-surface-muted hover:text-foreground",
       )}
     >
-      <Icon className={cn("h-5 w-5 transition-transform", !active && "group-hover:scale-110")} />
+      <span
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+          active ? "bg-primary-subtle text-primary" : "bg-surface-muted",
+        )}
+      >
+        <Icon className={cn("h-4 w-4 transition-transform", !active && "group-hover:scale-110")} />
+      </span>
       <span className="line-clamp-2 text-center">{label}</span>
       {count !== undefined && count > 0 && !active ? (
         <span className="font-mono text-[9px] text-foreground-subtle">{count}</span>
@@ -873,28 +886,26 @@ function QuickAction({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex flex-col items-center gap-1 rounded-xl border p-2 text-[10px] font-medium transition-all duration-150 active:scale-95",
+        "flex flex-col items-center gap-2 rounded-2xl border bg-surface px-3 py-4 text-xs font-medium transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm active:scale-95",
         active
-          ? "border-primary bg-primary-subtle text-primary"
-          : "border-border bg-surface hover:bg-surface-muted",
-        disabled && "cursor-not-allowed opacity-40",
+          ? "border-primary/60 bg-primary-subtle/60 text-primary"
+          : "border-border text-foreground-muted hover:text-foreground",
+        disabled && "cursor-not-allowed opacity-40 hover:translate-y-0 hover:shadow-none",
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-5 w-5" />
       {label}
     </button>
   );
 }
 
-function ChannelPill({
+function ChannelTab({
   active,
   onClick,
-  icon: Icon,
   children,
 }: {
   active: boolean;
   onClick: () => void;
-  icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
 }) {
   return (
@@ -902,12 +913,17 @@ function ChannelPill({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-all duration-150",
-        active ? "bg-background text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground",
+        "-mb-px relative px-1 pb-2.5 text-sm font-medium transition-colors",
+        active ? "text-foreground" : "text-foreground-muted hover:text-foreground",
       )}
     >
-      <Icon className="h-3.5 w-3.5" />
       {children}
+      {active ? (
+        <span
+          aria-hidden
+          className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
+        />
+      ) : null}
     </button>
   );
 }
