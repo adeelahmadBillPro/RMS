@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarClock, Receipt, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/db/client";
-import { withTenant } from "@/lib/db/with-tenant";
 import { getTenantContext } from "@/lib/tenant/context";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states/empty-state";
@@ -25,9 +24,14 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
   });
   if (!tenant) notFound();
 
-  const categories = await withTenant(ctx.tenantId, (tx) =>
-    tx.menuCategorySeed.findMany({ orderBy: { sortOrder: "asc" } }),
-  );
+  const categories = await prisma.menuCategory.findMany({
+    where: { tenantId: ctx.tenantId, deletedAt: null },
+    orderBy: { sortOrder: "asc" },
+    include: { _count: { select: { items: { where: { deletedAt: null } } } } },
+  });
+  const itemCount = await prisma.menuItem.count({
+    where: { tenantId: ctx.tenantId, deletedAt: null },
+  });
 
   const trialEndsAt = tenant.subscription?.trialEndsAt;
   const daysLeft = trialEndsAt
@@ -53,15 +57,15 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Today’s revenue" value="—" hint="Live in Phase 2" />
-        <StatCard label="Orders today" value="0" hint="No POS yet" />
+        <StatCard label="Today’s revenue" value="—" hint="Live with POS (Module 4)" />
+        <StatCard label="Menu items" value={String(itemCount)} hint={`${categories.length} categories`} />
         <StatCard label="Active staff" value="1" hint="That’s you" />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Your menu categories</CardTitle>
-          <CardDescription>From onboarding step 3.</CardDescription>
+          <CardTitle>Your menu</CardTitle>
+          <CardDescription>Categories you’re running.</CardDescription>
         </CardHeader>
         {categories.length === 0 ? (
           <EmptyState
@@ -70,21 +74,29 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
             icon={<Sparkles className="h-5 w-5" />}
             action={
               <Button asChild>
-                <Link href={`/${params.tenantSlug}/menu`}>Open menu (Phase 2)</Link>
+                <Link href={`/${params.tenantSlug}/menu`}>Open menu</Link>
               </Button>
             }
           />
         ) : (
-          <ul className="flex flex-wrap gap-2">
-            {categories.map((c) => (
-              <li
-                key={c.id}
-                className="rounded-full bg-surface-muted px-3 py-1 text-sm text-foreground-muted"
-              >
-                {c.name}
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-3">
+            <ul className="flex flex-wrap gap-2">
+              {categories.map((c) => (
+                <li
+                  key={c.id}
+                  className="rounded-full bg-surface-muted px-3 py-1 text-sm text-foreground-muted"
+                >
+                  {c.name}
+                  <span className="ml-1.5 font-mono text-xs text-foreground-subtle">
+                    {c._count.items}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Button asChild variant="ghost" size="sm">
+              <Link href={`/${params.tenantSlug}/menu`}>Manage menu →</Link>
+            </Button>
+          </div>
         )}
       </Card>
 

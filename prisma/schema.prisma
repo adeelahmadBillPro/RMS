@@ -58,6 +58,12 @@ enum AuditAction {
   BRANCH_CREATED
   BRANCH_UPDATED
   BRANCH_DELETED
+  MENU_CATEGORY_CREATED
+  MENU_CATEGORY_UPDATED
+  MENU_CATEGORY_DELETED
+  MENU_ITEM_CREATED
+  MENU_ITEM_UPDATED
+  MENU_ITEM_DELETED
 }
 
 // ----------------------------- AUTH ----------------------------------
@@ -150,11 +156,12 @@ model Tenant {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  memberships  TenantMembership[]
-  subscription Subscription?
-  categories   MenuCategorySeed[]
-  branches     Branch[]
-  auditLogs    AuditLog[]
+  memberships    TenantMembership[]
+  subscription   Subscription?
+  branches       Branch[]
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  auditLogs      AuditLog[]
 
   @@index([slug])
   @@index([deletedAt])
@@ -208,21 +215,111 @@ model TenantMembership {
   @@index([userId])
 }
 
-// Phase 1 placeholder so onboarding step 3 can persist categories.
-// Phase 2 will introduce full MenuCategory + MenuItem + Variant + Modifier models.
-model MenuCategorySeed {
-  id        String   @id @default(cuid())
+// ----------------------------- MENU ----------------------------------
+
+model MenuCategory {
+  id        String  @id @default(cuid())
   tenantId  String
   name      String
-  sortOrder Int      @default(0)
+  nameUr    String?
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+  photoUrl  String?
+
+  // Optional scheduled availability — minutes from midnight, e.g. 420 = 07:00
+  scheduledStartMin Int?
+  scheduledEndMin   Int?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  MenuItem[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, sortOrder])
+}
+
+model MenuItem {
+  id              String  @id @default(cuid())
+  tenantId        String
+  categoryId      String
+  name            String
+  nameUr          String?
+  description     String?
+  photoUrl        String?
+  prepTimeMinutes Int     @default(10)
+  isAvailable     Boolean @default(true)
+  sortOrder       Int     @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category       MenuCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants       MenuVariant[]
+  modifierGroups ModifierGroup[]
 
   @@index([tenantId])
+  @@index([categoryId])
+  @@index([tenantId, sortOrder])
+}
+
+model MenuVariant {
+  id          String  @id @default(cuid())
+  itemId      String
+  name        String
+  priceCents  Int
+  isDefault   Boolean @default(false)
+  isAvailable Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  item MenuItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model ModifierGroup {
+  id        String  @id @default(cuid())
+  itemId    String
+  name      String
+  required  Boolean @default(false)
+  minSelect Int     @default(0)
+  maxSelect Int     @default(1)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  item      MenuItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  modifiers Modifier[]
+
+  @@index([itemId])
+}
+
+model Modifier {
+  id              String  @id @default(cuid())
+  groupId         String
+  name            String
+  priceDeltaCents Int     @default(0)
+  isAvailable     Boolean @default(true)
+  sortOrder       Int     @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  group ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
 }
 
 // ----------------------------- BILLING -------------------------------

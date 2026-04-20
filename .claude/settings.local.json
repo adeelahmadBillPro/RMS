@@ -48,7 +48,9 @@
       "Bash(git -c user.name=\"EasyMenu Dev\" -c user.email=\"dev@easymenu.dev\" commit -q -m \"chore: phase 1 baseline \\(auth, tenants, onboarding, super admin, design system\\)\")",
       "Bash(powershell -Command 'Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne 8148 } | Select-Object Id, StartTime | Format-Table -AutoSize')",
       "Bash(powershell -Command \"Stop-Process -Id 25224, 27212, 27216 -Force -ErrorAction SilentlyContinue\")",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(branches\\): multi-branch support per tenant *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(branches\\): multi-branch support per tenant *)",
+      "Bash(powershell -Command 'Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne 8148 } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }')",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(menu\\): categories, items, variants, modifier groups & modifiers *)"
     ]
   }
 }

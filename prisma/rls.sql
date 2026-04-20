@@ -25,11 +25,29 @@ DROP POLICY IF EXISTS tenant_membership_isolation ON "TenantMembership";
 CREATE POLICY tenant_membership_isolation ON "TenantMembership"
   USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
 
--- MenuCategorySeed ----------------------------------------------------
-ALTER TABLE "MenuCategorySeed" ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS menu_category_seed_isolation ON "MenuCategorySeed";
-CREATE POLICY menu_category_seed_isolation ON "MenuCategorySeed"
+-- Branch --------------------------------------------------------------
+ALTER TABLE "Branch" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS branch_isolation ON "Branch";
+CREATE POLICY branch_isolation ON "Branch"
   USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- MenuCategory --------------------------------------------------------
+ALTER TABLE "MenuCategory" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS menu_category_isolation ON "MenuCategory";
+CREATE POLICY menu_category_isolation ON "MenuCategory"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- MenuItem ------------------------------------------------------------
+ALTER TABLE "MenuItem" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS menu_item_isolation ON "MenuItem";
+CREATE POLICY menu_item_isolation ON "MenuItem"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- MenuVariant / ModifierGroup / Modifier are isolated transitively via
+-- MenuItem; explicit per-table policies would require denormalising
+-- tenantId. Phase 1 ships parent-table RLS only — application-layer
+-- queries always start from a tenant-scoped MenuItem, so leakage is
+-- gated. Add full per-table tenantId in Phase 5 if RLS audit demands it.
 
 -- AuditLog ------------------------------------------------------------
 -- Platform-level rows have tenantId NULL and are visible only when no

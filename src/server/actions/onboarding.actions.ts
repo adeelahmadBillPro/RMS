@@ -108,7 +108,7 @@ export async function completeOnboardingAction(
       });
 
       if (data.categories.length > 0) {
-        await tx.menuCategorySeed.createMany({
+        await tx.menuCategory.createMany({
           data: data.categories.map((name, idx) => ({
             tenantId: t.id,
             name,
