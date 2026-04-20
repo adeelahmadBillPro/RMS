@@ -86,6 +86,7 @@ export function MenuWorkspace({
           slug={slug}
           canManage={canManage}
           categories={categories}
+          itemsByCategory={items}
           onEdit={setEditCat}
           onCreateFirst={() => setCreateCat(true)}
         />

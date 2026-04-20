@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { GripVertical, Pencil, Trash2, UtensilsCrossed } from "lucide-react";
+import {
+  Clock,
+  GripVertical,
+  Image as ImageIcon,
+  Pencil,
+  Trash2,
+  UtensilsCrossed,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/states/empty-state";
@@ -10,23 +17,50 @@ import {
   deleteCategoryAction,
   reorderCategoriesAction,
 } from "@/server/actions/menu.actions";
-import type { CategoryRow } from "./types";
+import { cn } from "@/lib/utils";
+import type { CategoryRow, ItemRow } from "./types";
 
 interface Props {
   slug: string;
   canManage: boolean;
   categories: CategoryRow[];
+  itemsByCategory: ItemRow[];
   onEdit: (cat: CategoryRow) => void;
   onCreateFirst: () => void;
 }
 
-export function CategoryList({ slug, canManage, categories, onEdit, onCreateFirst }: Props) {
+function minToHHMM(min: number) {
+  const h = Math.floor(min / 60).toString().padStart(2, "0");
+  const m = (min % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+export function CategoryList({
+  slug,
+  canManage,
+  categories,
+  itemsByCategory,
+  onEdit,
+  onCreateFirst,
+}: Props) {
   const { toast } = useToast();
   const [list, setList] = React.useState(categories);
   const [dragId, setDragId] = React.useState<string | null>(null);
   const [savingOrder, setSavingOrder] = React.useState(false);
 
   React.useEffect(() => setList(categories), [categories]);
+
+  const stats = React.useMemo(() => {
+    const map = new Map<string, { count: number; photoUrl: string | null }>();
+    for (const c of categories) map.set(c.id, { count: 0, photoUrl: null });
+    for (const it of itemsByCategory) {
+      const s = map.get(it.categoryId);
+      if (!s) continue;
+      s.count += 1;
+      if (!s.photoUrl && it.photoUrl) s.photoUrl = it.photoUrl;
+    }
+    return map;
+  }, [categories, itemsByCategory]);
 
   if (list.length === 0) {
     return (
@@ -70,80 +104,96 @@ export function CategoryList({ slug, canManage, categories, onEdit, onCreateFirs
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-surface-muted text-xs uppercase tracking-wide text-foreground-muted">
-            <th className="w-8 px-2 py-2"></th>
-            <th className="px-4 py-2 text-left font-medium">Name</th>
-            <th className="px-4 py-2 text-left font-medium">Status</th>
-            <th className="px-4 py-2 text-left font-medium">Schedule</th>
-            <th className="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {list.map((c) => (
-            <tr
-              key={c.id}
-              draggable={canManage && !savingOrder}
-              onDragStart={() => setDragId(c.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => onDrop(c.id)}
-              className={`border-t border-border transition-colors ${
-                dragId === c.id ? "opacity-50" : "hover:bg-surface-muted"
-              }`}
-            >
-              <td className="px-2 py-3 text-foreground-subtle">
-                {canManage ? <GripVertical className="h-4 w-4 cursor-grab" /> : null}
-              </td>
-              <td className="px-4 py-3 font-medium">
-                {c.name}
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {list.map((c, i) => {
+        const s = stats.get(c.id) ?? { count: 0, photoUrl: null };
+        const isDragging = dragId === c.id;
+        return (
+          <article
+            key={c.id}
+            draggable={canManage && !savingOrder}
+            onDragStart={() => setDragId(c.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => onDrop(c.id)}
+            style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
+            className={cn(
+              "group relative flex animate-fade-in flex-col overflow-hidden rounded-2xl border bg-background transition-all duration-200",
+              isDragging
+                ? "scale-95 opacity-40"
+                : "border-border hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md",
+              !c.isActive && "opacity-70",
+            )}
+          >
+            <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary-subtle to-surface-muted">
+              {s.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={s.photoUrl}
+                  alt={c.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <ImageIcon className="h-8 w-8 text-foreground-subtle" />
+                </div>
+              )}
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent"
+              />
+              {canManage ? (
+                <span className="absolute left-2 top-2 flex h-7 w-7 cursor-grab items-center justify-center rounded-full bg-background/80 text-foreground-muted opacity-0 backdrop-blur transition-opacity group-hover:opacity-100">
+                  <GripVertical className="h-4 w-4" />
+                </span>
+              ) : null}
+              <span className="absolute right-2 top-2 rounded-full bg-background/95 px-2.5 py-1 font-mono text-xs font-medium shadow-sm backdrop-blur">
+                {s.count} item{s.count === 1 ? "" : "s"}
+              </span>
+              <div className="absolute inset-x-3 bottom-2 text-white">
+                <p className="line-clamp-1 text-base font-semibold drop-shadow">{c.name}</p>
                 {c.nameUr ? (
-                  <span className="ml-2 font-urdu text-foreground-muted">{c.nameUr}</span>
+                  <p className="line-clamp-1 font-urdu text-xs opacity-80 drop-shadow">{c.nameUr}</p>
                 ) : null}
-              </td>
-              <td className="px-4 py-3">
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant={c.isActive ? "success" : "neutral"}>
-                  {c.isActive ? "Active" : "Hidden"}
+                  {c.isActive ? "Live" : "Hidden"}
                 </Badge>
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-foreground-muted">
-                {c.scheduledStartMin != null && c.scheduledEndMin != null
-                  ? `${minToHHMM(c.scheduledStartMin)} – ${minToHHMM(c.scheduledEndMin)}`
-                  : "All day"}
-              </td>
-              <td className="px-4 py-3">
-                {canManage ? (
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Edit category"
-                      onClick={() => onEdit(c)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Delete category"
-                      onClick={() => handleDelete(c)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {c.scheduledStartMin != null && c.scheduledEndMin != null ? (
+                  <Badge variant="info" className="font-mono text-[10px]">
+                    <Clock className="mr-1 h-3 w-3" />
+                    {minToHHMM(c.scheduledStartMin)}–{minToHHMM(c.scheduledEndMin)}
+                  </Badge>
                 ) : null}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+              {canManage ? (
+                <div className="flex gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Edit category"
+                    onClick={() => onEdit(c)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Delete category"
+                    onClick={() => handleDelete(c)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
-}
-
-function minToHHMM(min: number) {
-  const h = Math.floor(min / 60).toString().padStart(2, "0");
-  const m = (min % 60).toString().padStart(2, "0");
-  return `${h}:${m}`;
 }

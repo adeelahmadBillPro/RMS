@@ -71,7 +71,8 @@
       "Bash(powershell -Command \"Get-Process -Id 30916 -ErrorAction SilentlyContinue | Select-Object Id, StartTime, Path | Format-Table -AutoSize\")",
       "Bash(curl -s http://localhost:3100/login)",
       "Bash(curl -s -I http://localhost:3100/burgerhub/pos)",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(pos\\): match ClaPos reference more precisely *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(pos\\): match ClaPos reference more precisely *)",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(admin\\): food-app polish for dashboard + menu categories *)"
     ]
   }
 }
