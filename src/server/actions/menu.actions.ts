@@ -299,42 +299,136 @@ export async function updateItemAction(
       },
     });
 
-    // Replace variants & modifier groups (simpler than diffing for Phase 2).
-    // Recipes (Module 3) reference variantId, so when we add recipes, switch
-    // this to a diff-based update so variant IDs don't change underfoot.
-    await tx.menuVariant.deleteMany({ where: { itemId: item.id } });
-    await tx.menuVariant.createMany({
-      data: data.variants.map((v, idx) => ({
-        itemId: item.id,
-        name: v.name,
-        priceCents: rupeesToPaisa(v.priceRupees),
-        isDefault: v.isDefault,
-        isAvailable: v.isAvailable,
-        sortOrder: idx,
-      })),
+    // Diff-based variant update — recipes reference variantId, so we must
+    // not delete-and-recreate. Variants supplied with an `id` are updated
+    // in place; new ones are created; ones no longer present are soft-deleted.
+    const existingVariants = await tx.menuVariant.findMany({
+      where: { itemId: item.id, deletedAt: null },
+      select: { id: true },
     });
+    const incomingVariantIds = new Set(
+      data.variants.map((v) => v.id).filter((x): x is string => !!x),
+    );
+    for (const ev of existingVariants) {
+      if (!incomingVariantIds.has(ev.id)) {
+        await tx.menuVariant.update({
+          where: { id: ev.id },
+          data: { deletedAt: new Date(), isAvailable: false },
+        });
+      }
+    }
+    for (let idx = 0; idx < data.variants.length; idx++) {
+      const v = data.variants[idx]!;
+      if (v.id) {
+        await tx.menuVariant.update({
+          where: { id: v.id },
+          data: {
+            name: v.name,
+            priceCents: rupeesToPaisa(v.priceRupees),
+            isDefault: v.isDefault,
+            isAvailable: v.isAvailable,
+            sortOrder: idx,
+          },
+        });
+      } else {
+        await tx.menuVariant.create({
+          data: {
+            itemId: item.id,
+            name: v.name,
+            priceCents: rupeesToPaisa(v.priceRupees),
+            isDefault: v.isDefault,
+            isAvailable: v.isAvailable,
+            sortOrder: idx,
+          },
+        });
+      }
+    }
 
-    await tx.modifierGroup.deleteMany({ where: { itemId: item.id } });
+    // Modifier groups + modifiers: diff-based as well (modifiers will be
+    // referenced by OrderItemModifier in Module 4).
+    const existingGroups = await tx.modifierGroup.findMany({
+      where: { itemId: item.id, deletedAt: null },
+      select: { id: true, modifiers: { where: { deletedAt: null }, select: { id: true } } },
+    });
+    const incomingGroupIds = new Set(
+      data.modifierGroups.map((g) => g.id).filter((x): x is string => !!x),
+    );
+    for (const eg of existingGroups) {
+      if (!incomingGroupIds.has(eg.id)) {
+        await tx.modifierGroup.update({
+          where: { id: eg.id },
+          data: { deletedAt: new Date() },
+        });
+      }
+    }
     for (let gIdx = 0; gIdx < data.modifierGroups.length; gIdx++) {
       const g = data.modifierGroups[gIdx]!;
-      await tx.modifierGroup.create({
-        data: {
-          itemId: item.id,
-          name: g.name,
-          required: g.required,
-          minSelect: g.minSelect,
-          maxSelect: g.maxSelect,
-          sortOrder: gIdx,
-          modifiers: {
-            create: g.modifiers.map((m, mIdx) => ({
+      let groupId: string;
+      if (g.id) {
+        await tx.modifierGroup.update({
+          where: { id: g.id },
+          data: {
+            name: g.name,
+            required: g.required,
+            minSelect: g.minSelect,
+            maxSelect: g.maxSelect,
+            sortOrder: gIdx,
+          },
+        });
+        groupId = g.id;
+      } else {
+        const created = await tx.modifierGroup.create({
+          data: {
+            itemId: item.id,
+            name: g.name,
+            required: g.required,
+            minSelect: g.minSelect,
+            maxSelect: g.maxSelect,
+            sortOrder: gIdx,
+          },
+        });
+        groupId = created.id;
+      }
+
+      const existingMods = await tx.modifier.findMany({
+        where: { groupId, deletedAt: null },
+        select: { id: true },
+      });
+      const incomingModIds = new Set(
+        g.modifiers.map((m) => m.id).filter((x): x is string => !!x),
+      );
+      for (const em of existingMods) {
+        if (!incomingModIds.has(em.id)) {
+          await tx.modifier.update({
+            where: { id: em.id },
+            data: { deletedAt: new Date(), isAvailable: false },
+          });
+        }
+      }
+      for (let mIdx = 0; mIdx < g.modifiers.length; mIdx++) {
+        const m = g.modifiers[mIdx]!;
+        if (m.id) {
+          await tx.modifier.update({
+            where: { id: m.id },
+            data: {
               name: m.name,
               priceDeltaCents: rupeesToPaisa(m.priceDeltaRupees),
               isAvailable: m.isAvailable,
               sortOrder: mIdx,
-            })),
-          },
-        },
-      });
+            },
+          });
+        } else {
+          await tx.modifier.create({
+            data: {
+              groupId,
+              name: m.name,
+              priceDeltaCents: rupeesToPaisa(m.priceDeltaRupees),
+              isAvailable: m.isAvailable,
+              sortOrder: mIdx,
+            },
+          });
+        }
+      }
     }
   });
 

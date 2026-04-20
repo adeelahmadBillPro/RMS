@@ -247,6 +247,172 @@ async function main() {
     });
   }
 
+  // Inventory: supplier + ingredients + recipes
+  const existingIngs = await prisma.ingredient.count({ where: { tenantId: demoTenant.id } });
+  if (existingIngs === 0) {
+    const supplier = await prisma.supplier.create({
+      data: {
+        tenantId: demoTenant.id,
+        name: "Karachi Wholesale",
+        contactName: "Mr. Imran",
+        phone: "03001112222",
+        isActive: true,
+      },
+    });
+
+    // Ingredient name → unit + opening stock + cost per unit (paisa)
+    const ingredientSeed: Array<{
+      name: string;
+      unit: "G" | "KG" | "ML" | "L" | "PCS";
+      stock: number;
+      reorder: number;
+      costCents: number; // per unit
+    }> = [
+      { name: "Chicken fillet", unit: "KG", stock: 8, reorder: 2, costCents: 65_000 }, // PKR 650/kg
+      { name: "Beef patty (cooked)", unit: "PCS", stock: 40, reorder: 10, costCents: 18_000 }, // PKR 180 each
+      { name: "Burger bun", unit: "PCS", stock: 60, reorder: 20, costCents: 4_000 }, // PKR 40 each
+      { name: "Cheddar slice", unit: "PCS", stock: 80, reorder: 25, costCents: 2_500 }, // PKR 25 each
+      { name: "Lettuce", unit: "G", stock: 1500, reorder: 500, costCents: 30 }, // PKR 0.30/g (PKR 300/kg)
+      { name: "Mayo", unit: "ML", stock: 2000, reorder: 500, costCents: 25 }, // PKR 0.25/ml
+      { name: "Tortilla", unit: "PCS", stock: 50, reorder: 15, costCents: 5_000 }, // PKR 50 each
+      { name: "Potato (fries-cut)", unit: "KG", stock: 12, reorder: 3, costCents: 12_000 }, // PKR 120/kg
+      { name: "Cooking oil", unit: "L", stock: 10, reorder: 3, costCents: 60_000 }, // PKR 600/L
+      { name: "Coca-Cola can", unit: "PCS", stock: 100, reorder: 30, costCents: 6_000 }, // PKR 60 cost
+      { name: "Coca-Cola 1.5L", unit: "PCS", stock: 30, reorder: 10, costCents: 18_000 }, // PKR 180 cost
+    ];
+
+    const ingredients = new Map<string, { id: string; unit: string }>();
+    for (const seed of ingredientSeed) {
+      const ing = await prisma.ingredient.create({
+        data: {
+          tenantId: demoTenant.id,
+          name: seed.name,
+          unit: seed.unit,
+          currentStock: seed.stock,
+          reorderLevel: seed.reorder,
+          avgCostCents: seed.costCents,
+          supplierId: supplier.id,
+          isActive: true,
+        },
+      });
+      ingredients.set(seed.name, { id: ing.id, unit: seed.unit });
+    }
+
+    // Helper: build recipe items array
+    function recipeFor(specs: Array<{ name: string; qty: number; waste?: number }>) {
+      return specs.map((s) => {
+        const ing = ingredients.get(s.name);
+        if (!ing) throw new Error(`Missing seed ingredient: ${s.name}`);
+        return {
+          ingredientId: ing.id,
+          quantity: s.qty,
+          wastagePercent: s.waste ?? 0,
+        };
+      });
+    }
+
+    // Map menu variants to recipes
+    const variantRecipes: Array<{
+      itemName: string;
+      variantName: string;
+      items: ReturnType<typeof recipeFor>;
+    }> = [
+      {
+        itemName: "Zinger Burger",
+        variantName: "Single",
+        items: recipeFor([
+          { name: "Chicken fillet", qty: 0.15, waste: 5 },
+          { name: "Burger bun", qty: 1 },
+          { name: "Lettuce", qty: 20 },
+          { name: "Mayo", qty: 30 },
+          { name: "Cooking oil", qty: 0.05 },
+        ]),
+      },
+      {
+        itemName: "Zinger Burger",
+        variantName: "Double",
+        items: recipeFor([
+          { name: "Chicken fillet", qty: 0.28, waste: 5 },
+          { name: "Burger bun", qty: 1 },
+          { name: "Cheddar slice", qty: 1 },
+          { name: "Lettuce", qty: 25 },
+          { name: "Mayo", qty: 35 },
+          { name: "Cooking oil", qty: 0.07 },
+        ]),
+      },
+      {
+        itemName: "Classic Beef Burger",
+        variantName: "Regular",
+        items: recipeFor([
+          { name: "Beef patty (cooked)", qty: 1 },
+          { name: "Burger bun", qty: 1 },
+          { name: "Cheddar slice", qty: 1 },
+          { name: "Lettuce", qty: 15 },
+          { name: "Mayo", qty: 25 },
+        ]),
+      },
+      {
+        itemName: "Chicken Shawarma",
+        variantName: "Regular",
+        items: recipeFor([
+          { name: "Chicken fillet", qty: 0.1 },
+          { name: "Tortilla", qty: 1 },
+          { name: "Lettuce", qty: 15 },
+          { name: "Mayo", qty: 20 },
+        ]),
+      },
+      {
+        itemName: "French Fries",
+        variantName: "Regular",
+        items: recipeFor([
+          { name: "Potato (fries-cut)", qty: 0.18, waste: 8 },
+          { name: "Cooking oil", qty: 0.04 },
+        ]),
+      },
+      {
+        itemName: "Coca-Cola",
+        variantName: "Can",
+        items: recipeFor([{ name: "Coca-Cola can", qty: 1 }]),
+      },
+      {
+        itemName: "Coca-Cola",
+        variantName: "1.5L Bottle",
+        items: recipeFor([{ name: "Coca-Cola 1.5L", qty: 1 }]),
+      },
+    ];
+
+    for (const r of variantRecipes) {
+      const variant = await prisma.menuVariant.findFirst({
+        where: {
+          name: r.variantName,
+          item: { name: r.itemName, tenantId: demoTenant.id, deletedAt: null },
+        },
+        select: { id: true },
+      });
+      if (!variant) continue;
+      const recipe = await prisma.recipe.create({
+        data: {
+          variantId: variant.id,
+          items: { create: r.items },
+        },
+      });
+      // Compute and cache cost
+      const items = await prisma.recipeItem.findMany({
+        where: { recipeId: recipe.id },
+        include: { ingredient: { select: { avgCostCents: true } } },
+      });
+      const cost = items.reduce(
+        (s, i) =>
+          s + Number(i.quantity) * i.ingredient.avgCostCents * (1 + i.wastagePercent / 100),
+        0,
+      );
+      await prisma.recipe.update({
+        where: { id: recipe.id },
+        data: { cachedCostCents: Math.round(cost) },
+      });
+    }
+  }
+
   console.log(`✓ Demo tenant: /${demoTenant.slug}`);
   console.log(`  Owner login: demo@easymenu.dev / Demo@123`);
 }

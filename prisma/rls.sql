@@ -43,6 +43,30 @@ DROP POLICY IF EXISTS menu_item_isolation ON "MenuItem";
 CREATE POLICY menu_item_isolation ON "MenuItem"
   USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
 
+-- Supplier ------------------------------------------------------------
+ALTER TABLE "Supplier" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS supplier_isolation ON "Supplier";
+CREATE POLICY supplier_isolation ON "Supplier"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- Ingredient ----------------------------------------------------------
+ALTER TABLE "Ingredient" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS ingredient_isolation ON "Ingredient";
+CREATE POLICY ingredient_isolation ON "Ingredient"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- StockMovement -------------------------------------------------------
+ALTER TABLE "StockMovement" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS stock_movement_isolation ON "StockMovement";
+CREATE POLICY stock_movement_isolation ON "StockMovement"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- Purchase ------------------------------------------------------------
+ALTER TABLE "Purchase" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS purchase_isolation ON "Purchase";
+CREATE POLICY purchase_isolation ON "Purchase"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
 -- MenuVariant / ModifierGroup / Modifier are isolated transitively via
 -- MenuItem; explicit per-table policies would require denormalising
 -- tenantId. Phase 1 ships parent-table RLS only — application-layer
