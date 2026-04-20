@@ -67,6 +67,46 @@ enum WastageReason {
   OTHER
 }
 
+enum TableStatus {
+  FREE
+  OCCUPIED
+  RESERVED
+  BILLING
+}
+
+enum OrderChannel {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+  ONLINE
+  WHATSAPP
+}
+
+enum OrderStatus {
+  NEW
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  JAZZCASH
+  EASYPAISA
+  BANK_TRANSFER
+  SPLIT
+}
+
+enum PaymentVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  FAILED
+}
+
 enum AuditAction {
   TENANT_CREATED
   USER_CREATED
@@ -98,6 +138,13 @@ enum AuditAction {
   STOCK_RECEIVED
   STOCK_WASTED
   STOCK_ADJUSTED
+  TABLE_CREATED
+  TABLE_UPDATED
+  TABLE_DELETED
+  ORDER_CREATED
+  ORDER_STATUS_CHANGED
+  ORDER_CANCELLED
+  PAYMENT_RECORDED
 }
 
 // ----------------------------- AUTH ----------------------------------
@@ -199,6 +246,10 @@ model Tenant {
   suppliers      Supplier[]
   stockMovements StockMovement[]
   purchases      Purchase[]
+  tables         RestaurantTable[]
+  customers      Customer[]
+  orders         Order[]
+  payments       Payment[]
   auditLogs      AuditLog[]
 
   @@index([slug])
@@ -508,6 +559,175 @@ model PurchaseItem {
   ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
 
   @@index([purchaseId])
+}
+
+// ----------------------------- TABLES --------------------------------
+// "RestaurantTable" name avoids the SQL-reserved-word collision with "Table".
+
+model RestaurantTable {
+  id        String      @id @default(cuid())
+  tenantId  String
+  branchId  String
+  label     String      // e.g. "T-1"
+  seats     Int         @default(2)
+  qrCode    String      @unique @default(cuid())
+  status    TableStatus @default(FREE)
+  positionX Int?        // canvas pos for floor plan (Phase 3)
+  positionY Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([branchId, label])
+  @@index([tenantId])
+  @@index([branchId])
+}
+
+// ----------------------------- CUSTOMERS -----------------------------
+
+model Customer {
+  id              String   @id @default(cuid())
+  tenantId        String
+  phone           String
+  name            String?
+  totalOrders     Int      @default(0)
+  totalSpentCents Int      @default(0)
+  lastOrderAt     DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+}
+
+// ----------------------------- ORDERS --------------------------------
+
+model Order {
+  id              String       @id @default(cuid())
+  tenantId        String
+  branchId        String
+  channel         OrderChannel
+  status          OrderStatus  @default(NEW)
+  // Sequential per-tenant order number for receipts (e.g. "0042"). Set on create.
+  orderNumber     Int
+
+  tableId         String?
+  customerId      String?
+  customerPhone   String?
+  customerName    String?
+  deliveryAddress String?
+
+  // All amounts in paisa (Int)
+  subtotalCents       Int @default(0)
+  taxCents            Int @default(0)
+  serviceCents        Int @default(0)
+  discountCents       Int @default(0)
+  tipCents            Int @default(0)
+  deliveryChargeCents Int @default(0)
+  totalCents          Int @default(0)
+
+  notes        String?
+  // Idempotency key prevents duplicate POS submits (e.g. double-tap).
+  idempotencyKey String? @unique
+  createdById  String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  cancelledAt DateTime?
+  cancelReason String?
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  table      RestaurantTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  customer   Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items      OrderItem[]
+  payments   Payment[]
+  statusLog  OrderStatusLog[]
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([branchId, status])
+}
+
+model OrderItem {
+  id              String  @id @default(cuid())
+  orderId         String
+  menuItemId      String
+  variantId       String
+  // Snapshots so historical orders aren't affected by later menu edits.
+  itemNameSnap    String
+  variantNameSnap String
+  unitPriceCents  Int
+  quantity        Int
+  notes           String?
+  // Cached line total = quantity * (unitPriceCents + sum modifier deltas)
+  lineTotalCents  Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  modifiers OrderItemModifier[]
+
+  @@index([orderId])
+}
+
+model OrderItemModifier {
+  id              String @id @default(cuid())
+  orderItemId     String
+  modifierId      String?
+  modifierNameSnap String
+  priceDeltaCents Int
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([orderItemId])
+}
+
+model OrderStatusLog {
+  id          String      @id @default(cuid())
+  orderId     String
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  changedById String?
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+// ----------------------------- PAYMENTS ------------------------------
+
+model Payment {
+  id              String                    @id @default(cuid())
+  tenantId        String
+  orderId         String
+  method          PaymentMethod
+  amountCents     Int
+  reference       String?
+  screenshotUrl   String?
+  verification    PaymentVerificationStatus @default(UNVERIFIED)
+  recordedById    String?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([orderId])
+  @@index([verification])
 }
 
 // ----------------------------- BILLING -------------------------------

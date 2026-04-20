@@ -50,7 +50,9 @@
       "Bash(powershell -Command \"Stop-Process -Id 25224, 27212, 27216 -Force -ErrorAction SilentlyContinue\")",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(branches\\): multi-branch support per tenant *)",
       "Bash(powershell -Command 'Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne 8148 } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }')",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(menu\\): categories, items, variants, modifier groups & modifiers *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(menu\\): categories, items, variants, modifier groups & modifiers *)",
+      "Bash(pnpm add *)",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'feat\\(orders,pos,kds\\): tables, orders, POS, KDS, payments & Pusher *)"
     ]
   }
 }

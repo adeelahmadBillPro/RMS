@@ -67,6 +67,33 @@ DROP POLICY IF EXISTS purchase_isolation ON "Purchase";
 CREATE POLICY purchase_isolation ON "Purchase"
   USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
 
+-- RestaurantTable -----------------------------------------------------
+ALTER TABLE "RestaurantTable" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS restaurant_table_isolation ON "RestaurantTable";
+CREATE POLICY restaurant_table_isolation ON "RestaurantTable"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- Customer ------------------------------------------------------------
+ALTER TABLE "Customer" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS customer_isolation ON "Customer";
+CREATE POLICY customer_isolation ON "Customer"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- Order ---------------------------------------------------------------
+ALTER TABLE "Order" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS order_isolation ON "Order";
+CREATE POLICY order_isolation ON "Order"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- Payment -------------------------------------------------------------
+ALTER TABLE "Payment" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS payment_isolation ON "Payment";
+CREATE POLICY payment_isolation ON "Payment"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- OrderItem / OrderItemModifier / OrderStatusLog: scoped transitively
+-- via Order; queries always start from a tenant-scoped Order.
+
 -- MenuVariant / ModifierGroup / Modifier are isolated transitively via
 -- MenuItem; explicit per-table policies would require denormalising
 -- tenantId. Phase 1 ships parent-table RLS only — application-layer
