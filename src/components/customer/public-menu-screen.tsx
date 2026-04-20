@@ -284,26 +284,28 @@ export function PublicMenuScreen(props: Props) {
         </section>
       ) : null}
 
-      {/* Categories */}
-      <nav className="sticky top-16 z-10 flex gap-1 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur">
-        {props.categories.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setActiveCategory(c.id)}
-            className={`flex-shrink-0 rounded-full px-3 py-1.5 text-sm transition-colors ${
-              activeCategory === c.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface-muted text-foreground-muted hover:text-foreground"
-            }`}
-          >
-            {c.name}
-          </button>
-        ))}
+      {/* Categories — container-aligned so it lines up with hero + items */}
+      <nav className="sticky top-16 z-10 mt-4 border-b border-border bg-background/95 backdrop-blur">
+        <div className="container flex gap-2 overflow-x-auto py-3">
+          {props.categories.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setActiveCategory(c.id)}
+              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                activeCategory === c.id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-surface-muted text-foreground-muted hover:bg-border hover:text-foreground"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
       </nav>
 
-      {/* Items */}
-      <div className="container grid gap-4 py-6 pb-28 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {/* Items — grid is container-aligned; card count scales with viewport */}
+      <div className="container grid grid-cols-2 gap-3 py-6 pb-28 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
         {filtered.map((it, i) => {
           const def = it.variants.find((v) => v.isDefault) ?? it.variants[0];
           const qtyInCart = cartQtyByItem.get(it.id) ?? 0;

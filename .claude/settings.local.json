@@ -77,7 +77,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3100/api/health)",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(customer\\): full food-app landing \\\\u2014 hero carousel, category strip, popular items, deal banner *)",
       "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux: food-vibe auth backdrop + menu quick-add + in-picker extras upsell *)",
-      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(customer\\): rich restaurant header + hero promo on menu page *)"
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'ux\\(customer\\): rich restaurant header + hero promo on menu page *)",
+      "Bash(git -c 'user.name=EasyMenu Dev' -c user.email=dev@easymenu.dev commit -q -m 'fix\\(customer-menu\\): align category nav + tighter item grid *)"
     ]
   }
 }
