@@ -3,6 +3,7 @@ import Link from "next/link";
 const SUB_NAV = [
   { href: "", label: "Overview" },
   { href: "/branches", label: "Branches" },
+  { href: "/whatsapp", label: "WhatsApp" },
 ];
 
 export default function SettingsLayout({

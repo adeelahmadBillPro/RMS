@@ -63,6 +63,8 @@ async function main() {
       logoUrl:
         "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=200&fit=crop&crop=entropy",
       brandColor: "#EA580C",
+      whatsappEnabled: true,
+      whatsappNumber: "03001234567",
     },
     create: {
       slug: "burgerhub",
@@ -78,6 +80,8 @@ async function main() {
       acceptCard: true,
       acceptJazzCash: true,
       acceptEasypaisa: true,
+      whatsappEnabled: true,
+      whatsappNumber: "03001234567",
       onboardedAt: new Date(),
     },
   });
@@ -586,6 +590,34 @@ async function main() {
         },
       });
     }
+  }
+
+  // WhatsApp demo thread so the inbox isn't empty on first load
+  const existingThread = await prisma.whatsAppThread.findFirst({
+    where: { tenantId: demoTenant.id },
+  });
+  if (!existingThread) {
+    const t = await prisma.whatsAppThread.create({
+      data: {
+        tenantId: demoTenant.id,
+        customerPhone: "03004567890",
+        customerName: "Sara Demo",
+        lastMessageAt: new Date(Date.now() - 2 * 60_000),
+        unreadCount: 1,
+      },
+    });
+    await prisma.whatsAppMessage.createMany({
+      data: [
+        {
+          threadId: t.id,
+          direction: "INBOUND",
+          body:
+            "Assalam-u-alaikum! I’d like to order a Zinger burger meal — can you deliver to Gulshan Block 5?",
+          status: "DELIVERED",
+          createdAt: new Date(Date.now() - 5 * 60_000),
+        },
+      ],
+    });
   }
 
   console.log(`✓ Demo tenant: /${demoTenant.slug}`);

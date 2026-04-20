@@ -121,6 +121,24 @@ enum DeliveryCashStatus {
   DISPUTED
 }
 
+enum WhatsAppThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum WhatsAppMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WhatsAppMessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
 enum AuditAction {
   TENANT_CREATED
   USER_CREATED
@@ -165,6 +183,9 @@ enum AuditAction {
   DELIVERY_RETURNED
   DELIVERY_CASH_SUBMITTED
   DELIVERY_CASH_RECONCILED
+  WHATSAPP_MESSAGE_SENT
+  WHATSAPP_THREAD_CLOSED
+  WHATSAPP_CONVERTED_TO_ORDER
 }
 
 // ----------------------------- AUTH ----------------------------------
@@ -253,6 +274,12 @@ model Tenant {
   acceptEasypaisa Boolean @default(false)
   acceptBankTransfer Boolean @default(false)
 
+  // Per-tenant WhatsApp toggle. Even when env WHATSAPP_ENABLED=true, the
+  // tenant must explicitly opt in — turning this OFF stops webhook intake,
+  // refuses outbound sends, and hides the inbox.
+  whatsappEnabled Boolean @default(false)
+  whatsappNumber  String?
+
   onboardedAt DateTime?
 
   createdAt DateTime  @default(now())
@@ -274,6 +301,7 @@ model Tenant {
   payments            Payment[]
   deliveryAssignments DeliveryAssignment[]
   deliveryCashEnvelopes DeliveryCashSubmission[]
+  whatsappThreads     WhatsAppThread[]
   auditLogs           AuditLog[]
 
   @@index([slug])
@@ -677,6 +705,7 @@ model Order {
   payments           Payment[]
   statusLog          OrderStatusLog[]
   deliveryAssignment DeliveryAssignment?
+  whatsappThread     WhatsAppThread?
 
   @@unique([tenantId, orderNumber])
   @@index([tenantId, status])
@@ -807,6 +836,50 @@ model DeliveryCashSubmission {
 
   @@index([tenantId, submittedAt])
   @@index([deliveryUserId, status])
+}
+
+// ----------------------------- WHATSAPP ------------------------------
+
+model WhatsAppThread {
+  id               String               @id @default(cuid())
+  tenantId         String
+  customerPhone    String
+  customerName     String?
+  lastMessageAt    DateTime             @default(now())
+  unreadCount      Int                  @default(0)
+  status           WhatsAppThreadStatus @default(OPEN)
+  // Once a thread is converted to an order, we keep a pointer both ways.
+  convertedOrderId String?              @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages       WhatsAppMessage[]
+  convertedOrder Order?           @relation(fields: [convertedOrderId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, customerPhone])
+  @@index([tenantId, status])
+  @@index([tenantId, lastMessageAt])
+}
+
+model WhatsAppMessage {
+  id                String                   @id @default(cuid())
+  threadId          String
+  direction         WhatsAppMessageDirection
+  body              String                   @db.Text
+  mediaUrl          String?
+  status            WhatsAppMessageStatus    @default(PENDING)
+  providerMessageId String?
+  sentByUserId      String?
+  readAt            DateTime?
+
+  createdAt DateTime @default(now())
+
+  thread WhatsAppThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
 }
 
 // ----------------------------- BILLING -------------------------------

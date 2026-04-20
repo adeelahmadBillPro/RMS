@@ -15,6 +15,7 @@ import {
   Truck,
   Table2,
   BarChart3,
+  MessagesSquare,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const NAV = [
   { href: "/payroll", icon: CircleDollarSign, label: "Payroll" },
   { href: "/deliveries", icon: Truck, label: "Deliveries" },
   { href: "/tables", icon: Table2, label: "Tables" },
+  { href: "/whatsapp", icon: MessagesSquare, label: "WhatsApp" },
   { href: "/reports", icon: BarChart3, label: "Reports" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];

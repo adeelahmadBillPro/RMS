@@ -106,6 +106,14 @@ DROP POLICY IF EXISTS delivery_cash_isolation ON "DeliveryCashSubmission";
 CREATE POLICY delivery_cash_isolation ON "DeliveryCashSubmission"
   USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
 
+-- WhatsAppThread ------------------------------------------------------
+ALTER TABLE "WhatsAppThread" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS whatsapp_thread_isolation ON "WhatsAppThread";
+CREATE POLICY whatsapp_thread_isolation ON "WhatsAppThread"
+  USING ("tenantId" = current_tenant_id() OR current_tenant_id() IS NULL);
+
+-- WhatsAppMessage: scoped transitively via WhatsAppThread.
+
 -- MenuVariant / ModifierGroup / Modifier are isolated transitively via
 -- MenuItem; explicit per-table policies would require denormalising
 -- tenantId. Phase 1 ships parent-table RLS only — application-layer
