@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import {
+  Bike,
   Clock,
   MessageCircle,
   ShoppingBag,
   Smartphone,
-  Truck,
-  Utensils,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatMoney } from "@/lib/utils";
@@ -26,9 +26,9 @@ export type OrderListItem = {
 };
 
 const CHANNEL_ICON = {
-  DINE_IN: Utensils,
+  DINE_IN: UtensilsCrossed,
   TAKEAWAY: ShoppingBag,
-  DELIVERY: Truck,
+  DELIVERY: Bike,
   ONLINE: Smartphone,
   WHATSAPP: MessageCircle,
 } as const;

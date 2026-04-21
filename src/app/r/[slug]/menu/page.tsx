@@ -15,7 +15,15 @@ export default async function PublicMenuPage({
 }) {
   const tenant = await prisma.tenant.findFirst({
     where: { slug: params.slug, deletedAt: null },
-    select: { id: true, name: true, hasDelivery: true, hasTakeaway: true },
+    select: {
+      id: true,
+      name: true,
+      hasDelivery: true,
+      hasTakeaway: true,
+      deliveryAreas: true,
+      deliveryFeeCents: true,
+      deliveryMinOrderCents: true,
+    },
   });
   if (!tenant) notFound();
 
@@ -71,6 +79,9 @@ export default async function PublicMenuPage({
       hasTakeaway={tenant.hasTakeaway}
       defaultChannel={requestedChannel}
       mode="generic"
+      deliveryAreas={tenant.deliveryAreas}
+      deliveryFeeCents={tenant.deliveryFeeCents}
+      deliveryMinOrderCents={tenant.deliveryMinOrderCents}
       categories={categories.map((c) => ({ id: c.id, name: c.name }))}
       items={items.map(serializeItem)}
     />

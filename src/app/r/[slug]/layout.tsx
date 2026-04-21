@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Clock, Phone, Star, Truck } from "lucide-react";
+import { Clock, Package, Phone, Star, Truck } from "lucide-react";
 import { prisma } from "@/lib/db/client";
 import { APP } from "@/lib/config/app";
+import { CustomerAuthChip } from "@/components/customer/auth-chip";
 
 export default async function PublicTenantLayout({
   children,
@@ -78,16 +79,27 @@ export default async function PublicTenantLayout({
             </div>
           </Link>
 
-          {tenant.contactPhone ? (
-            <a
-              href={`tel:${tenant.contactPhone}`}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-primary-subtle px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <Link
+              href={`/r/${params.slug}/track`}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground-muted transition-colors hover:border-primary hover:text-primary"
             >
-              <Phone className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{tenant.contactPhone}</span>
-              <span className="sm:hidden">Call</span>
-            </a>
-          ) : null}
+              <Package className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Track order</span>
+              <span className="sm:hidden">Track</span>
+            </Link>
+            {tenant.contactPhone ? (
+              <a
+                href={`tel:${tenant.contactPhone}`}
+                className="flex items-center gap-1.5 rounded-full bg-primary-subtle px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{tenant.contactPhone}</span>
+                <span className="sm:hidden">Call</span>
+              </a>
+            ) : null}
+            <CustomerAuthChip slug={params.slug} />
+          </div>
         </div>
       </header>
 

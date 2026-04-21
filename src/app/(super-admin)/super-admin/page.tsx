@@ -1,15 +1,17 @@
 import Link from "next/link";
-import { Building2, Users, ShieldCheck } from "lucide-react";
+import { Building2, Users, ShieldCheck, CreditCard } from "lucide-react";
 import { prisma } from "@/lib/db/client";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminHome() {
-  const [tenantCount, userCount, activeSubs] = await Promise.all([
+  const [tenantCount, userCount, activeSubs, pendingInvoices] = await Promise.all([
     prisma.tenant.count({ where: { deletedAt: null } }),
     prisma.user.count({ where: { deletedAt: null } }),
-    prisma.subscription.count({ where: { status: { in: ["TRIALING", "ACTIVE"] } } }),
+    prisma.subscription.count({ where: { status: { in: ["TRIALING", "ACTIVE", "LIFETIME"] } } }),
+    prisma.planInvoice.count({ where: { status: "PENDING" } }),
   ]);
 
   return (
@@ -29,18 +31,44 @@ export default async function SuperAdminHome() {
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tenants</CardTitle>
-          <CardDescription>Manage subscriptions, extend trials, impersonate.</CardDescription>
-        </CardHeader>
-        <Link
-          href="/super-admin/tenants"
-          className="text-sm text-primary hover:underline"
-        >
-          Open tenants list →
-        </Link>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Tenants</CardTitle>
+            <CardDescription>Manage subscriptions, extend trials, impersonate.</CardDescription>
+          </CardHeader>
+          <Link
+            href="/super-admin/tenants"
+            className="text-sm text-primary hover:underline"
+          >
+            Open tenants list →
+          </Link>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-primary-subtle text-primary">
+              <CreditCard className="h-4 w-4" />
+            </div>
+            <CardTitle>
+              Billing
+              {pendingInvoices > 0 ? (
+                <Badge variant="warning" className="ml-2">
+                  {pendingInvoices} pending
+                </Badge>
+              ) : null}
+            </CardTitle>
+            <CardDescription>
+              Verify bank / wallet payments and activate plan upgrades.
+            </CardDescription>
+          </CardHeader>
+          <Link
+            href="/super-admin/billing"
+            className="text-sm text-primary hover:underline"
+          >
+            Open billing →
+          </Link>
+        </Card>
+      </div>
     </div>
   );
 }

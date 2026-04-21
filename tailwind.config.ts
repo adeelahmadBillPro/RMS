@@ -112,6 +112,35 @@ const config: Config = {
           from: { transform: "scaleX(0)" },
           to: { transform: "scaleX(1)" },
         },
+        "word-in": {
+          "0%": { opacity: "0", transform: "translateY(12px)", filter: "blur(6px)" },
+          "60%": { opacity: "1", filter: "blur(0)" },
+          "100%": { opacity: "1", transform: "translateY(0)", filter: "blur(0)" },
+        },
+        "gradient-pan": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        caret: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
+        },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(64px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "slide-in-left": {
+          from: { opacity: "0", transform: "translateX(-48px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "slide-in-down": {
+          from: { opacity: "0", transform: "translateY(-32px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "btn-shine": {
+          "0%": { transform: "translateX(-120%) skewX(-18deg)" },
+          "100%": { transform: "translateX(220%) skewX(-18deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 200ms ease-out",
@@ -122,6 +151,13 @@ const config: Config = {
         shimmer: "shimmer 1.8s linear infinite",
         "pulse-dot": "pulse-dot 1.8s ease-in-out infinite",
         "underline-in": "underline-in 200ms ease-out forwards",
+        "word-in": "word-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+        "gradient-pan": "gradient-pan 6s ease-in-out infinite",
+        caret: "caret 1s steps(2, end) infinite",
+        "slide-in-right": "slide-in-right 900ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "slide-in-left": "slide-in-left 900ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "slide-in-down": "slide-in-down 900ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "btn-shine": "btn-shine 700ms ease-out",
       },
     },
   },

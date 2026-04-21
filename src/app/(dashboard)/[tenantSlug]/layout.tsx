@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 import { MobileTabBar } from "@/components/dashboard/mobile-nav";
+import { WarmCanvas } from "@/components/ui/warm-canvas";
 
 export default async function TenantLayout({
   children,
@@ -39,7 +40,9 @@ export default async function TenantLayout({
       />
       <div className="flex flex-1">
         <Sidebar slug={params.tenantSlug} />
-        <main className="flex-1 pb-16 md:pb-0">{children}</main>
+        <WarmCanvas className="flex-1 pb-16 md:pb-0">
+          <main>{children}</main>
+        </WarmCanvas>
       </div>
       <MobileTabBar slug={params.tenantSlug} />
     </div>

@@ -7,7 +7,9 @@ import { audit } from "@/lib/audit/log";
 import { rateLimit } from "@/lib/rate-limit";
 import { computeTotals, type CartLine } from "@/lib/orders/cart";
 import { realtime, REALTIME_EVENTS, tenantChannel } from "@/lib/realtime";
+import { getSession } from "@/lib/auth/session";
 import { publicOrderSchema } from "@/lib/validations/public-order.schema";
+import { addressCoveredByAreas } from "@/lib/validations/delivery-zones.schema";
 import type { ActionResult } from "./auth.actions";
 
 /**
@@ -32,17 +34,38 @@ export async function placePublicOrderAction(
     return { ok: false, error: "Please fix the highlighted fields.", fieldErrors };
   }
   const data = parsed.data;
+  const session = await getSession();
+  const customerUserId = session?.user?.id ?? null;
 
   // Resolve tenant
   const tenant = await prisma.tenant.findUnique({
     where: { slug: data.slug, deletedAt: null } as { slug: string; deletedAt: Date | null },
-    select: { id: true, name: true, hasDelivery: true, hasTakeaway: true },
+    select: {
+      id: true,
+      name: true,
+      hasDelivery: true,
+      hasTakeaway: true,
+      deliveryAreas: true,
+      deliveryFeeCents: true,
+      deliveryMinOrderCents: true,
+    },
   });
   if (!tenant) return { ok: false, error: "Restaurant not found." };
   if (data.channel === "DELIVERY" && !tenant.hasDelivery)
     return { ok: false, error: "This restaurant doesn’t do delivery." };
   if (data.channel === "TAKEAWAY" && !tenant.hasTakeaway)
     return { ok: false, error: "This restaurant doesn’t do takeaway." };
+
+  // Zone check — only when delivering + tenant has configured allow-list
+  if (data.channel === "DELIVERY" && tenant.deliveryAreas.length > 0) {
+    if (!data.deliveryAddress || !addressCoveredByAreas(data.deliveryAddress, tenant.deliveryAreas)) {
+      return {
+        ok: false,
+        error: `Sorry, we don't deliver to that address yet. We currently serve: ${tenant.deliveryAreas.join(", ")}.`,
+        fieldErrors: { deliveryAddress: "Out of our delivery zone" },
+      };
+    }
+  }
 
   // Rate limit: 10 orders per phone per hour, 30 per IP per hour
   const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? headers().get("x-real-ip") ?? "anon";
@@ -132,11 +155,24 @@ export async function placePublicOrderAction(
     };
   });
 
+  const deliveryChargeCents = data.channel === "DELIVERY" ? tenant.deliveryFeeCents : 0;
   const totals = computeTotals({
     lines,
     taxBps: branch.taxBps,
     serviceBps: branch.serviceBps,
+    deliveryChargeCents,
   });
+  if (
+    data.channel === "DELIVERY" &&
+    tenant.deliveryMinOrderCents > 0 &&
+    totals.subtotalCents < tenant.deliveryMinOrderCents
+  ) {
+    const minRupees = Math.round(tenant.deliveryMinOrderCents / 100);
+    return {
+      ok: false,
+      error: `Minimum delivery order is Rs ${minRupees}. Add a bit more to check out.`,
+    };
+  }
 
   // Idempotency
   const existing = await prisma.order.findFirst({
@@ -183,6 +219,7 @@ export async function placePublicOrderAction(
         notes: data.notes || null,
         idempotencyKey: data.idempotencyKey,
         createdById: null, // public order
+        customerUserId,
       },
     });
 

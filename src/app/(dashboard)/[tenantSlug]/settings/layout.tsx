@@ -2,7 +2,11 @@ import Link from "next/link";
 
 const SUB_NAV = [
   { href: "", label: "Overview" },
+  { href: "/profile", label: "Profile" },
+  { href: "/channels", label: "Channels & payments" },
   { href: "/branches", label: "Branches" },
+  { href: "/delivery", label: "Delivery" },
+  { href: "/locale", label: "Localization" },
   { href: "/whatsapp", label: "WhatsApp" },
 ];
 

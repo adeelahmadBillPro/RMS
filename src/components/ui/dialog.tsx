@@ -34,7 +34,10 @@ export const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background p-6 shadow-lg",
+        // Mobile: anchor to top with safe-area top padding so virtual keyboard
+        // doesn't hide form fields. Desktop: classic centered modal.
+        "fixed left-1/2 top-4 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-1rem)] max-w-lg -translate-x-1/2 flex-col overflow-y-auto overscroll-contain rounded-xl border border-border bg-background p-5 shadow-lg",
+        "sm:top-1/2 sm:max-h-[90vh] sm:w-full sm:-translate-y-1/2 sm:p-6",
         "data-[state=open]:animate-fade-in",
         className,
       )}
@@ -74,5 +77,10 @@ export const DialogDescription = React.forwardRef<
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mt-6 flex justify-end gap-3", className)} {...props} />;
+  return (
+    <div
+      className={cn("mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3", className)}
+      {...props}
+    />
+  );
 }

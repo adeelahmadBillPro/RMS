@@ -141,10 +141,10 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
       : "Good evening";
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-surface/50 via-background to-background">
+    <div className="min-h-full">
       <div className="container space-y-6 py-6">
         {/* ── HERO ─────────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/90 via-primary to-primary-hover p-6 text-primary-foreground shadow-md md:p-8">
+        <section className="relative animate-slide-in-down overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/90 via-primary to-primary-hover p-6 text-primary-foreground shadow-md md:p-8">
           <div
             aria-hidden
             className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 rounded-full bg-white/10 blur-3xl"
@@ -200,9 +200,9 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
 
           <div className="relative mt-6 flex flex-wrap items-center gap-2">
             <Button asChild variant="secondary" size="sm" className="bg-white/95 text-foreground hover:bg-white">
-              <Link href={`/${slug}/pos`}>
+              <Link href={`/${slug}/orders`}>
                 <ShoppingBag className="h-4 w-4" />
-                Open POS
+                Order board
               </Link>
             </Button>
             <Button
@@ -232,24 +232,28 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
             value={String(activeOrders)}
             hint={activeOrders > 0 ? "In the pipeline" : "All caught up"}
             tone={activeOrders > 0 ? "info" : "neutral"}
+            delayMs={120}
           />
           <StatPill
             label="Completed today"
             value={String(completedToday)}
             hint="Served"
             tone="success"
+            delayMs={180}
           />
           <StatPill
             label="Avg ticket"
             value={avgTicketCents > 0 ? formatMoney(avgTicketCents) : "—"}
             hint={ordersToday.length === 0 ? "Start an order" : `${ordersToday.length} orders`}
             tone="primary"
+            delayMs={240}
           />
           <StatPill
             label="Menu items"
             value={String(itemCount)}
             hint={`${categories.length} categor${categories.length === 1 ? "y" : "ies"}`}
             tone="neutral"
+            delayMs={300}
           />
         </div>
 
@@ -261,18 +265,21 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
             title="Order board"
             subtitle={activeOrders > 0 ? `${activeOrders} active` : "All clear"}
             accent={activeOrders > 0}
+            delayMs={360}
           />
           <QuickTile
-            href={`/${slug}/kds`}
+            href={`/${slug}/recipes`}
             icon={<ChefHat className="h-5 w-5" />}
-            title="Kitchen display"
-            subtitle="Full-screen KDS"
+            title="Recipes"
+            subtitle="Costing & prep notes"
+            delayMs={420}
           />
           <QuickTile
             href={`/${slug}/menu`}
             icon={<UtensilsCrossed className="h-5 w-5" />}
             title="Menu"
             subtitle={`${itemCount} items`}
+            delayMs={480}
           />
           <QuickTile
             href={`/${slug}/inventory`}
@@ -280,12 +287,16 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
             title="Inventory"
             subtitle={lowStockCount > 0 ? `${lowStockCount} low-stock` : "Stock healthy"}
             accent={lowStockCount > 0}
+            delayMs={540}
           />
         </div>
 
         {/* ── HOURLY CHART + RECENT ORDERS ───────────────────────────── */}
         <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-          <section className="rounded-2xl border border-border bg-background p-5">
+          <section
+            className="rounded-2xl border border-border bg-background p-5 opacity-0 animate-slide-up"
+            style={{ animationDelay: "600ms", animationFillMode: "forwards" }}
+          >
             <header className="mb-4 flex items-end justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wide text-foreground-muted">
@@ -341,7 +352,10 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
           </section>
 
           {/* Recent orders feed */}
-          <section className="flex flex-col rounded-2xl border border-border bg-background p-5">
+          <section
+            className="flex flex-col rounded-2xl border border-border bg-background p-5 opacity-0 animate-slide-up"
+            style={{ animationDelay: "680ms", animationFillMode: "forwards" }}
+          >
             <header className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wide text-foreground-muted">Latest</p>
@@ -405,7 +419,10 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
         {/* ── TOP ITEMS + SHARE MENU ────────────────────────────────── */}
         <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
           {/* Featured items */}
-          <section className="rounded-2xl border border-border bg-background p-5">
+          <section
+            className="rounded-2xl border border-border bg-background p-5 opacity-0 animate-slide-up"
+            style={{ animationDelay: "760ms", animationFillMode: "forwards" }}
+          >
             <header className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-h3">Your menu highlights</h2>
@@ -471,7 +488,10 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
           </section>
 
           {/* Share menu */}
-          <section className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary-subtle via-primary-subtle/60 to-background p-5">
+          <section
+            className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary-subtle via-primary-subtle/60 to-background p-5 opacity-0 animate-slide-up"
+            style={{ animationDelay: "840ms", animationFillMode: "forwards" }}
+          >
             <div
               aria-hidden
               className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/15 blur-2xl"
@@ -515,11 +535,13 @@ function StatPill({
   value,
   hint,
   tone = "neutral",
+  delayMs = 0,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "primary" | "info" | "success" | "warning" | "neutral";
+  delayMs?: number;
 }) {
   const toneBg: Record<string, string> = {
     primary: "bg-primary-subtle text-primary",
@@ -529,7 +551,10 @@ function StatPill({
     neutral: "bg-surface-muted text-foreground-muted",
   };
   return (
-    <div className="rounded-2xl border border-border bg-background p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div
+      className="rounded-2xl border border-border bg-background p-4 opacity-0 transition-all duration-200 animate-slide-up hover:-translate-y-0.5 hover:shadow-md"
+      style={{ animationDelay: `${delayMs}ms`, animationFillMode: "forwards" }}
+    >
       <div className="flex items-start justify-between gap-2">
         <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${toneBg[tone]}`}>
           {label}
@@ -547,17 +572,20 @@ function QuickTile({
   title,
   subtitle,
   accent = false,
+  delayMs = 0,
 }: {
   href: string;
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   accent?: boolean;
+  delayMs?: number;
 }) {
   return (
     <Link
       href={href}
-      className={`group flex items-center gap-3 rounded-2xl border bg-background p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+      style={{ animationDelay: `${delayMs}ms`, animationFillMode: "forwards" }}
+      className={`group flex items-center gap-3 rounded-2xl border bg-background p-4 opacity-0 transition-all duration-200 animate-slide-up hover:-translate-y-0.5 hover:shadow-md ${
         accent ? "border-primary/60 bg-primary-subtle/40" : "border-border hover:border-primary/50"
       }`}
     >
