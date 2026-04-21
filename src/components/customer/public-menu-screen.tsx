@@ -1,16 +1,19 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
+  Heart,
   Image as ImageIcon,
   Minus,
   Plus,
+  Search,
   ShoppingBag,
   Trash2,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +31,10 @@ import {
 import { FieldError, FieldHint, FormField } from "@/components/ui/form-field";
 import { placePublicOrderAction } from "@/server/actions/public-order.actions";
 import { computeTotals, lineKey, type CartLine } from "@/lib/orders/cart";
+import { useFavoriteItems } from "@/lib/customer/favorites";
 import { formatMoney } from "@/lib/utils";
+
+const CART_STORAGE_PREFIX = "easymenu:cart:v1:";
 
 type Variant = { id: string; name: string; priceCents: number; isDefault: boolean };
 type Modifier = { id: string; name: string; priceDeltaCents: number };
@@ -57,6 +63,9 @@ type Props = {
   hasDelivery: boolean;
   hasTakeaway: boolean;
   defaultChannel: "DINE_IN" | "TAKEAWAY" | "DELIVERY";
+  deliveryAreas?: string[];
+  deliveryFeeCents?: number;
+  deliveryMinOrderCents?: number;
   categories: PublicCategory[];
   items: PublicItem[];
 } & (
@@ -69,7 +78,10 @@ export function PublicMenuScreen(props: Props) {
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = React.useState<string>(props.categories[0]?.id ?? "");
   const [picker, setPicker] = React.useState<PublicItem | null>(null);
+  const { data: session } = useSession();
+  const { isFavorite, toggle: toggleFav } = useFavoriteItems(props.slug);
   const [cart, setCart] = React.useState<CartLine[]>([]);
+  const [cartHydrated, setCartHydrated] = React.useState(false);
   const [cartOpen, setCartOpen] = React.useState(false);
   const [checkout, setCheckout] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -81,6 +93,38 @@ export function PublicMenuScreen(props: Props) {
   );
   const [customerName, setCustomerName] = React.useState("");
   const [customerPhone, setCustomerPhone] = React.useState("");
+
+  // Prefill from logged-in user so returning customers don't re-enter their name.
+  React.useEffect(() => {
+    if (session?.user?.name && !customerName) setCustomerName(session.user.name);
+  }, [session?.user?.name, customerName]);
+
+  // Hydrate cart from localStorage on mount (per tenant slug). Don't write
+  // back until after hydration to avoid overwriting persisted state with [].
+  const cartStorageKey = `${CART_STORAGE_PREFIX}${props.slug}`;
+  React.useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(cartStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as CartLine[];
+        if (Array.isArray(parsed) && parsed.length > 0) setCart(parsed);
+      }
+    } catch {
+      /* ignore corrupt storage */
+    }
+    setCartHydrated(true);
+  }, [cartStorageKey]);
+
+  React.useEffect(() => {
+    if (!cartHydrated) return;
+    try {
+      if (cart.length === 0) window.localStorage.removeItem(cartStorageKey);
+      else window.localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+    } catch {
+      /* quota or private mode — ignore */
+    }
+  }, [cart, cartHydrated, cartStorageKey]);
+
   const [deliveryAddress, setDeliveryAddress] = React.useState("");
   const [orderNotes, setOrderNotes] = React.useState("");
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
@@ -175,7 +219,13 @@ export function PublicMenuScreen(props: Props) {
     });
     setSubmitting(false);
     if (!res.ok) {
-      setServerError(res.error);
+      // Friendlier message when an item went off-menu mid-session.
+      const looksLikeOOS = /unavailable|out of stock|off.menu/i.test(res.error);
+      setServerError(
+        looksLikeOOS
+          ? "One of your items just went off-menu. Refresh to see the latest menu, then try again."
+          : res.error,
+      );
       if (res.fieldErrors) setFieldErrors(res.fieldErrors);
       return;
     }
@@ -200,7 +250,34 @@ export function PublicMenuScreen(props: Props) {
               ? `${props.tenantName} will start preparing your order. We’ll bring it to ${props.tableLabel}.`
               : `${props.tenantName} has your order. They’ll be in touch on ${customerPhone}.`}
           </p>
-          <Button className="mt-6" onClick={() => setSuccess(null)}>
+          {/* Guest account upsell — most natural moment to ask. */}
+          {props.mode !== "table" && !session ? (
+            <div className="mt-6 rounded-2xl border border-primary/30 bg-primary-subtle/40 p-4 text-left">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <UserPlus className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Save this order, reorder in 1 tap</p>
+                  <p className="mt-0.5 text-xs text-foreground-muted">
+                    Create an account to track orders, save favorites, and reorder fast.
+                  </p>
+                  <Button asChild size="sm" className="mt-3">
+                    <Link
+                      href={`/signup?callbackUrl=${encodeURIComponent(`/r/${props.slug}/account`)}`}
+                    >
+                      Create account
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <Button
+            className="mt-6"
+            variant={props.mode !== "table" && !session ? "ghost" : "primary"}
+            onClick={() => setSuccess(null)}
+          >
             Order more
           </Button>
         </div>
@@ -230,10 +307,13 @@ export function PublicMenuScreen(props: Props) {
             />
             <div className="relative flex items-center justify-between gap-4">
               <div>
-                <p className="flex items-center gap-1.5 text-xs font-semibold">
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 backdrop-blur">🔥 Deal</span>
-                  <span className="opacity-90">Free delivery over Rs 500</span>
-                </p>
+                {(props.deliveryMinOrderCents ?? 0) > 0 && channel === "DELIVERY" ? (
+                  <p className="flex items-center gap-1.5 text-xs font-semibold">
+                    <span className="rounded-full bg-white/20 px-2 py-0.5 backdrop-blur">
+                      Min order {formatMoney(props.deliveryMinOrderCents ?? 0)}
+                    </span>
+                  </p>
+                ) : null}
                 <h2 className="mt-2 text-2xl font-bold leading-tight md:text-3xl">
                   What are you craving today?
                 </h2>
@@ -304,6 +384,19 @@ export function PublicMenuScreen(props: Props) {
         </div>
       </nav>
 
+      {/* Empty state when active category has nothing in it */}
+      {filtered.length === 0 ? (
+        <div className="container py-16 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-surface-muted text-foreground-subtle">
+            <Search className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-h3">Nothing here yet</p>
+          <p className="mt-1 text-sm text-foreground-muted">
+            This category is empty right now. Try another category above.
+          </p>
+        </div>
+      ) : null}
+
       {/* Items — grid is container-aligned; card count scales with viewport */}
       <div className="container grid grid-cols-2 gap-3 py-6 pb-28 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
         {filtered.map((it, i) => {
@@ -348,6 +441,22 @@ export function PublicMenuScreen(props: Props) {
                   </span>
                 ) : null}
               </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFav(it.id);
+                }}
+                aria-label={isFavorite(it.id) ? "Remove from favorites" : "Add to favorites"}
+                aria-pressed={isFavorite(it.id)}
+                className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 text-foreground-muted shadow-sm backdrop-blur transition-all hover:scale-110 hover:text-danger"
+              >
+                <Heart
+                  className={`h-4 w-4 transition-colors ${
+                    isFavorite(it.id) ? "fill-danger text-danger" : ""
+                  }`}
+                />
+              </button>
 
               <div className="flex flex-1 flex-col px-3 pb-3 pt-2">
                 <button
@@ -382,18 +491,18 @@ export function PublicMenuScreen(props: Props) {
                         type="button"
                         onClick={() => quickDecrement(it)}
                         aria-label="Decrease"
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-background text-primary shadow-sm transition-transform hover:scale-110 active:scale-95"
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-background text-primary shadow-sm transition-transform hover:scale-110 active:scale-95"
                       >
-                        <Minus className="h-3.5 w-3.5" />
+                        <Minus className="h-4 w-4" />
                       </button>
-                      <span className="w-6 text-center font-mono text-sm font-bold text-primary">
+                      <span className="w-7 text-center font-mono text-sm font-bold text-primary">
                         {qtyInCart}
                       </span>
                       <button
                         type="button"
                         onClick={() => quickAdd(it)}
                         aria-label="Increase"
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-110 active:scale-95"
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-110 active:scale-95"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -425,12 +534,13 @@ export function PublicMenuScreen(props: Props) {
         })}
       </div>
 
-      {/* Sticky cart pill */}
+      {/* Sticky cart pill — bottom respects iOS safe-area (home indicator) */}
       {cart.length > 0 ? (
         <button
           type="button"
           onClick={() => setCartOpen(true)}
-          className="fixed bottom-4 left-1/2 z-20 flex -translate-x-1/2 animate-scale-in items-center gap-3 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-lg active:scale-[0.97]"
+          style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          className="fixed left-1/2 z-20 flex -translate-x-1/2 animate-scale-in items-center gap-3 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-lg active:scale-[0.97]"
         >
           <ShoppingBag className="h-4 w-4" />
           {cartItemCount} {cartItemCount === 1 ? "item" : "items"}
@@ -488,16 +598,16 @@ export function PublicMenuScreen(props: Props) {
                           {l.modifiers.map((m) => m.modifierNameSnap).join(", ")}
                         </p>
                       ) : null}
-                      <div className="mt-1 flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => bumpLine(l.lineKey, -1)}>
-                          <Minus className="h-3 w-3" />
+                      <div className="mt-1.5 flex items-center gap-1">
+                        <Button size="icon" variant="outline" className="h-9 w-9 rounded-full" onClick={() => bumpLine(l.lineKey, -1)}>
+                          <Minus className="h-3.5 w-3.5" />
                         </Button>
-                        <span className="w-7 text-center font-mono text-sm">{l.quantity}</span>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => bumpLine(l.lineKey, +1)}>
-                          <Plus className="h-3 w-3" />
+                        <span className="w-8 text-center font-mono text-sm font-semibold">{l.quantity}</span>
+                        <Button size="icon" variant="outline" className="h-9 w-9 rounded-full" onClick={() => bumpLine(l.lineKey, +1)}>
+                          <Plus className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="ml-auto h-7 w-7" onClick={() => removeLine(l.lineKey)}>
-                          <Trash2 className="h-3 w-3" />
+                        <Button size="icon" variant="ghost" className="ml-auto h-9 w-9 text-foreground-subtle hover:text-danger" onClick={() => removeLine(l.lineKey)}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -513,7 +623,13 @@ export function PublicMenuScreen(props: Props) {
           </div>
           <p className="text-right text-xs text-foreground-muted">Tax / service charged at checkout.</p>
           <DialogFooter>
-            <Button onClick={() => { setCartOpen(false); setCheckout(true); }} disabled={cart.length === 0}>
+            <Button
+              onClick={() => {
+                setCartOpen(false);
+                setCheckout(true);
+              }}
+              disabled={cart.length === 0}
+            >
               Checkout
             </Button>
           </DialogFooter>
@@ -586,6 +702,23 @@ export function PublicMenuScreen(props: Props) {
                 Channel: <Badge variant="info" className="ml-1">{channel}</Badge>
               </p>
             )}
+            {channel === "DELIVERY" && (props.deliveryFeeCents ?? 0) > 0 ? (
+              <p className="text-xs text-foreground-muted">
+                Delivery fee:{" "}
+                <span className="font-mono">{formatMoney(props.deliveryFeeCents ?? 0)}</span>
+              </p>
+            ) : null}
+            {channel === "DELIVERY" && props.deliveryAreas && props.deliveryAreas.length > 0 ? (
+              <p className="text-[11px] text-foreground-muted">
+                We deliver to: {props.deliveryAreas.join(", ")}
+              </p>
+            ) : null}
+            {channel === "DELIVERY" && (props.deliveryMinOrderCents ?? 0) > 0 ? (
+              <p className="text-[11px] text-foreground-muted">
+                Minimum delivery order:{" "}
+                <span className="font-mono">{formatMoney(props.deliveryMinOrderCents ?? 0)}</span>
+              </p>
+            ) : null}
           </div>
           <DialogFooter>
             <Button onClick={() => setCheckout(false)} variant="ghost">Back</Button>
@@ -772,18 +905,18 @@ function ItemPicker({
                           type="button"
                           onClick={() => bumpExtra(ex.id, -1)}
                           aria-label="Decrease"
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-muted text-foreground transition-colors hover:bg-border active:scale-95"
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-muted text-foreground transition-colors hover:bg-border active:scale-95"
                         >
-                          <Minus className="h-3 w-3" />
+                          <Minus className="h-4 w-4" />
                         </button>
-                        <span className="w-6 text-center font-mono text-sm font-semibold">{n}</span>
+                        <span className="w-7 text-center font-mono text-sm font-semibold">{n}</span>
                         <button
                           type="button"
                           onClick={() => bumpExtra(ex.id, 1)}
                           aria-label="Increase"
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors active:scale-95"
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors active:scale-95"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-4 w-4" />
                         </button>
                       </div>
                     ) : (

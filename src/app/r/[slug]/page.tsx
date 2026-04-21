@@ -2,44 +2,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
-  Clock,
-  CreditCard,
+  Bike,
   Flame,
   Phone,
-  ShieldCheck,
   ShoppingBag,
-  Star,
-  Truck,
   UtensilsCrossed,
 } from "lucide-react";
 import { prisma } from "@/lib/db/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, HorizontalScroll } from "@/components/ui/carousel";
+import { DealsGrid } from "@/components/customer/deals-grid";
+import { ReviewsSection } from "@/components/customer/reviews-section";
 import { formatMoney } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-const HERO_SLIDES: { title: string; sub: string; img: string; cta: string }[] = [
-  {
-    title: "Hot, fresh & at your door",
-    sub: "Order in a few taps — kitchen is already waiting.",
-    img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1600&h=900&fit=crop",
-    cta: "Order now",
-  },
-  {
-    title: "Smash the hunger",
-    sub: "Our signature beef burgers straight off the grill.",
-    img: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=1600&h=900&fit=crop",
-    cta: "Order burgers",
-  },
-  {
-    title: "Crispy sides, chilled drinks",
-    sub: "Every combo builds itself — tap to start.",
-    img: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=1600&h=900&fit=crop",
-    cta: "See the menu",
-  },
-];
 
 export default async function PublicLanding({ params }: { params: { slug: string } }) {
   const tenant = await prisma.tenant.findFirst({
@@ -56,7 +33,8 @@ export default async function PublicLanding({ params }: { params: { slug: string
   });
   if (!tenant) notFound();
 
-  const [categories, featuredItems] = await Promise.all([
+  const now = new Date();
+  const [categories, featuredItems, activeDeals, reviews, reviewAgg] = await Promise.all([
     prisma.menuCategory.findMany({
       where: { tenantId: tenant.id, deletedAt: null, isActive: true },
       orderBy: { sortOrder: "asc" },
@@ -82,7 +60,38 @@ export default async function PublicLanding({ params }: { params: { slug: string
         },
       },
     }),
+    prisma.deal.findMany({
+      where: {
+        tenantId: tenant.id,
+        deletedAt: null,
+        isActive: true,
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+      },
+      orderBy: { sortOrder: "asc" },
+      take: 5,
+    }),
+    prisma.review.findMany({
+      where: { tenantId: tenant.id, isHidden: false },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
+    prisma.review.aggregate({
+      where: { tenantId: tenant.id, isHidden: false },
+      _avg: { rating: true },
+      _count: { _all: true },
+    }),
   ]);
+
+  const authorIds = Array.from(new Set(reviews.map((r) => r.userId)));
+  const authors =
+    authorIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: authorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const authorNameById = new Map(authors.map((a) => [a.id, a.name]));
 
   const primaryChannel = tenant.hasTakeaway
     ? "TAKEAWAY"
@@ -93,48 +102,132 @@ export default async function PublicLanding({ params }: { params: { slug: string
 
   return (
     <div className="space-y-6 pb-10">
-      {/* ── HERO CAROUSEL ────────────────────────────────────────────── */}
+      {/* ── HERO — live tenant deals carousel, or branded fallback ─── */}
       <section className="container pt-4">
-        <Carousel autoplayMs={4000} className="shadow-md">
-          {HERO_SLIDES.map((slide, i) => (
-            <div key={i} className="relative h-full w-full">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={slide.img}
-                alt=""
-                aria-hidden
-                className="h-full w-full object-cover"
-              />
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/50 to-transparent"
-              />
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent md:hidden"
-              />
-              <div className="absolute inset-0 flex flex-col items-start justify-end p-6 text-white md:items-start md:justify-center md:p-10 md:pl-14">
-                <Badge variant="primary" className="bg-primary/90 backdrop-blur">
-                  <Flame className="mr-1 h-3 w-3" />
-                  Hot deal
-                </Badge>
-                <h2 className="mt-3 max-w-lg text-3xl font-bold leading-tight drop-shadow md:text-4xl lg:text-5xl">
-                  {slide.title}
-                </h2>
-                <p className="mt-2 max-w-md text-sm text-white/90 drop-shadow md:text-base">
-                  {slide.sub}
-                </p>
-                <Button asChild size="lg" className="mt-5 shadow-lg">
-                  <Link href={menuUrl(primaryChannel)}>
-                    {slide.cta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
+        {activeDeals.length === 0 ? (
+          <div
+            className="relative flex h-[260px] items-center justify-center overflow-hidden rounded-3xl shadow-md md:h-[340px]"
+            style={{ background: tenant.brandColor || "hsl(var(--primary))" }}
+          >
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-16 -top-10 h-64 w-64 rounded-full bg-white/15 blur-3xl"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-white/10 blur-3xl"
+            />
+            <div className="relative flex flex-col items-center gap-4 px-6 text-center text-white">
+              {tenant.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={tenant.logoUrl}
+                  alt={tenant.name}
+                  className="h-16 w-16 rounded-2xl bg-white/95 object-cover p-1 shadow-md"
+                />
+              ) : null}
+              <h1 className="max-w-md text-3xl font-bold leading-tight drop-shadow md:text-4xl">
+                Welcome to {tenant.name}
+              </h1>
+              <Button asChild size="lg" variant="secondary" className="bg-white text-foreground hover:bg-white/95">
+                <Link href={menuUrl(primaryChannel)}>
+                  Browse menu
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-          ))}
-        </Carousel>
+          </div>
+        ) : (
+          <Carousel autoplayMs={5000} className="shadow-md">
+          {activeDeals.map((d) => {
+            const valueLabel =
+              d.type === "PERCENT_OFF"
+                ? `${((d.percentBps ?? 0) / 100).toFixed(0)}% OFF`
+                : d.type === "FLAT_OFF"
+                  ? `Rs ${Math.round((d.flatOffCents ?? 0) / 100)} OFF`
+                  : "FREE DELIVERY";
+            return (
+              <div
+                key={d.id}
+                className="relative h-full w-full"
+                style={{ background: d.bgColor || tenant.brandColor || "hsl(var(--primary))" }}
+              >
+                {d.heroImageUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={d.heroImageUrl}
+                      alt=""
+                      aria-hidden
+                      className="absolute inset-0 h-full w-full object-cover opacity-60"
+                    />
+                    {/* Floor + gradient: image-bg slides need a guaranteed
+                        contrast floor on the text side, otherwise WCAG fails
+                        when the underlying image is bright. */}
+                    <div
+                      aria-hidden
+                      className="absolute inset-0 bg-black/30"
+                    />
+                    <div
+                      aria-hidden
+                      className="absolute inset-0 bg-gradient-to-r from-foreground/70 via-foreground/30 to-transparent"
+                    />
+                  </>
+                ) : (
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full bg-white/15 blur-3xl"
+                  />
+                )}
+                <div className="absolute inset-0 flex flex-col items-start justify-end p-6 text-white md:items-start md:justify-center md:p-10 md:pl-14">
+                  <Badge variant="primary" className="bg-white/90 text-primary">
+                    <Flame className="mr-1 h-3 w-3" />
+                    {valueLabel}
+                  </Badge>
+                  <h2 className="mt-3 max-w-lg text-3xl font-bold leading-tight drop-shadow md:text-4xl lg:text-5xl">
+                    {d.title}
+                  </h2>
+                  {d.subtitle ? (
+                    <p className="mt-2 max-w-md text-sm text-white/90 drop-shadow md:text-base">
+                      {d.subtitle}
+                    </p>
+                  ) : null}
+                  {d.minOrderCents > 0 ? (
+                    <p className="mt-1 text-xs text-white/80">
+                      Min order {formatMoney(d.minOrderCents)}
+                    </p>
+                  ) : null}
+                  <Button asChild size="lg" className="mt-5 shadow-lg">
+                    <Link href={menuUrl(primaryChannel)}>
+                      {d.ctaLabel ?? "Order now"}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+          </Carousel>
+        )}
       </section>
+
+      {/* ── INDIVIDUAL DEAL CARDS (KFC-style grid) ──────────────────── */}
+      <DealsGrid
+        deals={activeDeals.map((d) => ({
+          id: d.id,
+          title: d.title,
+          subtitle: d.subtitle,
+          type: d.type,
+          percentBps: d.percentBps,
+          flatOffCents: d.flatOffCents,
+          minOrderCents: d.minOrderCents,
+          heroImageUrl: d.heroImageUrl,
+          bgColor: d.bgColor,
+          ctaLabel: d.ctaLabel,
+          endsAt: d.endsAt?.toISOString() ?? null,
+        }))}
+        menuHref={menuUrl(primaryChannel)}
+      />
 
       {/* ── CHANNEL SWITCHER ─────────────────────────────────────────── */}
       <section className="container">
@@ -151,7 +244,7 @@ export default async function PublicLanding({ params }: { params: { slug: string
           {tenant.hasDelivery ? (
             <ChannelBig
               href={menuUrl("DELIVERY")}
-              icon={<Truck className="h-5 w-5" />}
+              icon={<Bike className="h-5 w-5" />}
               title="Delivery"
               sub="To your doorstep hot"
             />
@@ -165,98 +258,7 @@ export default async function PublicLanding({ params }: { params: { slug: string
         </div>
       </section>
 
-      {/* ── CATEGORIES STRIP ─────────────────────────────────────────── */}
-      {categories.length > 0 ? (
-        <section className="container">
-          <header className="mb-3 flex items-end justify-between">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-wide text-primary">
-                What’s cooking
-              </p>
-              <h2 className="text-h2">Pick your craving</h2>
-            </div>
-            <Link
-              href={menuUrl(primaryChannel)}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              View all →
-            </Link>
-          </header>
-          <HorizontalScroll>
-            {categories.map((c) => (
-              <Link
-                key={c.id}
-                href={`${menuUrl(primaryChannel)}&cat=${c.id}`}
-                className="group flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border bg-background p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md sm:w-[160px]"
-              >
-                <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-subtle to-surface-muted">
-                  {c.items[0]?.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.items[0].photoUrl}
-                      alt={c.name}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-primary">
-                      <UtensilsCrossed className="h-8 w-8" />
-                    </div>
-                  )}
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold">{c.name}</p>
-                  <p className="text-xs text-foreground-muted">
-                    {c._count.items} item{c._count.items === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </HorizontalScroll>
-        </section>
-      ) : null}
-
-      {/* ── OFFER BANNER ─────────────────────────────────────────────── */}
-      <section className="container">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary-hover p-6 text-primary-foreground shadow-md md:p-8">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-16 -top-10 h-64 w-64 rounded-full bg-white/15 blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-white/10 blur-3xl"
-          />
-          <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
-            <div>
-              <Badge variant="primary" className="bg-white/20 text-white backdrop-blur">
-                <Star className="mr-1 h-3 w-3 fill-white" />
-                Limited time
-              </Badge>
-              <h2 className="mt-3 text-3xl font-bold leading-tight md:text-4xl">
-                First order? <br />
-                Free delivery on us.
-              </h2>
-              <p className="mt-2 max-w-md text-sm text-white/85">
-                Order anywhere above Rs 500 and we’ll take the delivery charge off
-                automatically — no code needed.
-              </p>
-            </div>
-            <Button
-              asChild
-              size="lg"
-              variant="secondary"
-              className="bg-white text-primary hover:bg-white/95"
-            >
-              <Link href={menuUrl(primaryChannel)}>
-                Claim it now
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── POPULAR NOW CAROUSEL ─────────────────────────────────────── */}
+      {/* ── POPULAR NOW (food-first, above categories) ───────────────── */}
       {featuredItems.length > 0 ? (
         <section className="container">
           <header className="mb-3 flex items-end justify-between">
@@ -264,7 +266,7 @@ export default async function PublicLanding({ params }: { params: { slug: string
               <p className="font-mono text-xs uppercase tracking-wide text-primary">
                 Popular now
               </p>
-              <h2 className="text-h2">Most loved 🔥</h2>
+              <h2 className="text-h2">Most loved</h2>
             </div>
             <Link
               href={menuUrl(primaryChannel)}
@@ -320,26 +322,72 @@ export default async function PublicLanding({ params }: { params: { slug: string
         </section>
       ) : null}
 
-      {/* ── WHY ORDER WITH US ────────────────────────────────────────── */}
-      <section className="container">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <InfoCard
-            icon={<Clock className="h-5 w-5" />}
-            title="Made fresh"
-            sub="Straight off the grill, never pre-made."
-          />
-          <InfoCard
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title="Safe & hygienic"
-            sub="Gloves, masks, sealed packaging."
-          />
-          <InfoCard
-            icon={<CreditCard className="h-5 w-5" />}
-            title="Pay your way"
-            sub="Cash, JazzCash, Easypaisa, card."
-          />
-        </div>
-      </section>
+      {/* ── CATEGORIES STRIP ─────────────────────────────────────────── */}
+      {categories.length > 0 ? (
+        <section className="container">
+          <header className="mb-3 flex items-end justify-between">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-wide text-primary">
+                What’s cooking
+              </p>
+              <h2 className="text-h2">Pick your craving</h2>
+            </div>
+            <Link
+              href={menuUrl(primaryChannel)}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              View all →
+            </Link>
+          </header>
+          <HorizontalScroll>
+            {categories.map((c) => (
+              <Link
+                key={c.id}
+                href={`${menuUrl(primaryChannel)}&cat=${c.id}`}
+                className="group flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border bg-background p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md sm:w-[160px]"
+              >
+                <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-subtle to-surface-muted">
+                  {c.items[0]?.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.items[0].photoUrl}
+                      alt={c.name}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-primary">
+                      <UtensilsCrossed className="h-8 w-8" />
+                    </div>
+                  )}
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold">{c.name}</p>
+                  <p className="text-xs text-foreground-muted">
+                    {c._count.items} item{c._count.items === 1 ? "" : "s"}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </HorizontalScroll>
+        </section>
+      ) : null}
+
+      {/* ── CUSTOMER REVIEWS ─────────────────────────────────────────── */}
+      <ReviewsSection
+        slug={params.slug}
+        average={reviewAgg._avg.rating ?? 0}
+        total={reviewAgg._count._all}
+        reviews={reviews.map((r) => ({
+          id: r.id,
+          rating: r.rating,
+          title: r.title,
+          body: r.body,
+          createdAt: r.createdAt.toISOString(),
+          ownerReply: r.ownerReply,
+          ownerRepliedAt: r.ownerRepliedAt?.toISOString() ?? null,
+          authorName: authorNameById.get(r.userId) ?? null,
+        }))}
+      />
 
       {/* ── STICKY FOOTER BAND ───────────────────────────────────────── */}
       {tenant.contactPhone ? (
@@ -406,24 +454,3 @@ function ChannelBig({
   );
 }
 
-function InfoCard({
-  icon,
-  title,
-  sub,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  sub: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-2xl border border-border bg-background p-4">
-      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-subtle text-primary">
-        {icon}
-      </span>
-      <div>
-        <p className="font-medium">{title}</p>
-        <p className="text-xs text-foreground-muted">{sub}</p>
-      </div>
-    </div>
-  );
-}

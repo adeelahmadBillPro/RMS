@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PackageX, Phone } from "lucide-react";
 import { prisma } from "@/lib/db/client";
 import { OrderTrackingClient } from "@/components/customer/order-tracking-client";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,16 @@ export default async function CustomerOrderTrackingPage({
 }: {
   params: { slug: string; id: string };
 }) {
+  // Resolve tenant first so we can render a friendly fallback even if the
+  // order vanishes / never existed (link from old SMS, typo, etc).
+  const tenant = await prisma.tenant.findFirst({
+    where: { slug: params.slug, deletedAt: null },
+    select: { id: true, name: true, contactPhone: true },
+  });
+  if (!tenant) notFound();
+
   const order = await prisma.order.findFirst({
-    where: {
-      id: params.id,
-      tenant: { slug: params.slug, deletedAt: null },
-    },
+    where: { id: params.id, tenantId: tenant.id },
     include: {
       table: { select: { label: true } },
       items: {
@@ -25,7 +31,36 @@ export default async function CustomerOrderTrackingPage({
       tenant: { select: { id: true, name: true, contactPhone: true } },
     },
   });
-  if (!order) notFound();
+  if (!order) {
+    return (
+      <div className="container max-w-md py-16 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning-subtle text-warning">
+          <PackageX className="h-7 w-7" />
+        </div>
+        <h1 className="mt-4 text-h2">Order not found</h1>
+        <p className="mt-2 text-sm text-foreground-muted">
+          We couldn’t find this order at {tenant.name}. It may have been removed,
+          or the link could be incorrect.
+        </p>
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Button asChild>
+            <Link href={`/r/${params.slug}/track`}>Track by order # + phone</Link>
+          </Button>
+          {tenant.contactPhone ? (
+            <a
+              href={`tel:${tenant.contactPhone}`}
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              <Phone className="h-3.5 w-3.5" /> Call {tenant.contactPhone}
+            </a>
+          ) : null}
+          <Button asChild variant="ghost">
+            <Link href={`/r/${params.slug}`}>Back to menu</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const itemsTotal = order.items.reduce((s, it) => s + it.quantity, 0);
   const etaMinutes = Math.min(45, 5 + Math.ceil(itemsTotal * 2));
@@ -64,9 +99,12 @@ export default async function CustomerOrderTrackingPage({
           })),
         }}
       />
-      <div className="mt-8 text-center">
+      <div className="mt-8 flex items-center justify-center gap-2">
         <Button asChild variant="ghost">
           <Link href={`/r/${params.slug}/menu`}>← Browse more</Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href={`/r/${params.slug}/receipt/${order.id}`}>View receipt</Link>
         </Button>
       </div>
     </div>

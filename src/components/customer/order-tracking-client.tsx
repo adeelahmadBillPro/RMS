@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  Bike,
   Check,
   ChefHat,
   CheckCircle2,
@@ -9,7 +10,6 @@ import {
   MapPin,
   Package,
   PartyPopper,
-  Truck,
   XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +54,7 @@ const STEP_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   NEW: Package,
   PREPARING: ChefHat,
   READY: CheckCircle2,
-  OUT_FOR_DELIVERY: Truck,
+  OUT_FOR_DELIVERY: Bike,
   COMPLETED: PartyPopper,
 };
 

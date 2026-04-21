@@ -38,6 +38,9 @@ export function Carousel({
   const slides = React.Children.toArray(children);
   const [active, setActive] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
+  // Mobile users get manual swipe/arrows only — autoplay on a small screen
+  // disrupts attention and breaks WCAG 2.2.2 (no user-pausable on touch).
+  const [isDesktop, setIsDesktop] = React.useState(false);
 
   const go = React.useCallback(
     (next: number) => setActive((prev) => (next + slides.length) % slides.length),
@@ -45,10 +48,18 @@ export function Carousel({
   );
 
   React.useEffect(() => {
-    if (!autoplayMs || paused || slides.length < 2) return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  React.useEffect(() => {
+    if (!autoplayMs || paused || slides.length < 2 || !isDesktop) return;
     const id = setInterval(() => setActive((i) => (i + 1) % slides.length), autoplayMs);
     return () => clearInterval(id);
-  }, [autoplayMs, paused, slides.length]);
+  }, [autoplayMs, paused, slides.length, isDesktop]);
 
   // Keyboard arrows when focused
   const rootRef = React.useRef<HTMLDivElement>(null);
