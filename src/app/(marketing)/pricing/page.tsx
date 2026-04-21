@@ -33,7 +33,7 @@ export default async function PricingPage() {
 
   return (
     <div className="container py-12">
-      <header className="mx-auto max-w-2xl text-center">
+      <header className="max-w-2xl">
         <p className="font-mono text-xs uppercase tracking-wide text-primary">
           Simple, honest pricing
         </p>

@@ -10,6 +10,7 @@ import { realtime, REALTIME_EVENTS, tenantChannel } from "@/lib/realtime";
 import { getSession } from "@/lib/auth/session";
 import { publicOrderSchema } from "@/lib/validations/public-order.schema";
 import { addressCoveredByAreas } from "@/lib/validations/delivery-zones.schema";
+import { applyCouponInTx } from "./coupon.actions";
 import type { ActionResult } from "./auth.actions";
 
 /**
@@ -233,6 +234,33 @@ export async function placePublicOrderAction(
         customerUserId,
       },
     });
+
+    // Apply coupon (if any) — re-evaluated inside the transaction so we
+    // can't be cheated by a stale UI. On success, deduct from totals
+    // and stamp the snapshot code on the order.
+    if (data.couponCode && data.couponCode.trim().length > 0) {
+      const couponCode = data.couponCode.trim().toUpperCase();
+      const couponDiscount = await applyCouponInTx(tx, {
+        tenantId: tenant.id,
+        code: couponCode,
+        subtotalCents: totals.subtotalCents,
+        channel: data.channel,
+        deliveryFeeCents: deliveryChargeCents,
+        orderId: created.id,
+      });
+      if (couponDiscount > 0) {
+        const newDiscount = totals.discountCents + couponDiscount;
+        const newTotal = Math.max(0, created.totalCents - couponDiscount);
+        await tx.order.update({
+          where: { id: created.id },
+          data: {
+            discountCents: newDiscount,
+            totalCents: newTotal,
+            appliedCouponCode: couponCode,
+          },
+        });
+      }
+    }
 
     for (const line of lines) {
       const modSum = line.modifiers.reduce((s, m) => s + m.priceDeltaCents, 0);

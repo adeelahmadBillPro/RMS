@@ -164,6 +164,12 @@ enum DealType {
   FREE_DELIVERY   // waive delivery charge
 }
 
+enum CouponType {
+  PERCENT_OFF
+  FLAT_OFF
+  FREE_DELIVERY
+}
+
 enum AuditAction {
   TENANT_CREATED
   USER_CREATED
@@ -354,6 +360,7 @@ model Tenant {
   whatsappThreads     WhatsAppThread[]
   notifications       Notification[]
   deals               Deal[]
+  coupons             Coupon[]
   reviews             Review[]
   auditLogs           AuditLog[]
 
@@ -743,6 +750,8 @@ model Order {
   notes        String?
   // Idempotency key prevents duplicate POS submits (e.g. double-tap).
   idempotencyKey String? @unique
+  // Coupon code applied at checkout (snapshot — coupon may be deleted later).
+  appliedCouponCode String?
   createdById  String?
   // Customer user (NextAuth User) who placed this order via the public site.
   // NULL for walk-in POS orders or guest (unauthenticated) orders on table QR.
@@ -970,6 +979,56 @@ model Deal {
 
   @@index([tenantId, isActive])
   @@index([tenantId, sortOrder])
+}
+
+// ----------------------------- COUPONS -------------------------------
+
+model Coupon {
+  id               String     @id @default(cuid())
+  tenantId         String
+  // User-facing code, normalized to uppercase server-side.
+  code             String
+  type             CouponType
+  // For PERCENT_OFF: percentBps (1000 = 10.00%)
+  percentBps       Int?
+  // For FLAT_OFF: flatOffCents
+  flatOffCents     Int?
+  // Cap on the discount amount applied (useful for percent coupons on huge orders).
+  maxDiscountCents Int?
+  // Order subtotal must be at least this much for the coupon to apply.
+  minOrderCents    Int        @default(0)
+  // Total redemptions across all customers; null = unlimited.
+  maxRedemptions   Int?
+  // Denormalized counter — updated atomically inside the order transaction.
+  redemptionsCount Int        @default(0)
+  validFrom        DateTime   @default(now())
+  validUntil       DateTime?
+  isActive         Boolean    @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  redemptions CouponRedemption[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+}
+
+model CouponRedemption {
+  id            String   @id @default(cuid())
+  couponId      String
+  tenantId      String
+  // One redemption per order.
+  orderId       String   @unique
+  discountCents Int
+  createdAt     DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([couponId])
 }
 
 // ----------------------------- REVIEWS -------------------------------

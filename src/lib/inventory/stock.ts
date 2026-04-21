@@ -25,6 +25,11 @@ export async function applyStockMovement(
     createdById?: string | null;
   },
 ) {
+  // Row-lock the ingredient FOR UPDATE so concurrent purchases don't race
+  // on the weighted-average cost calc (T1 reads avgCost A, T2 reads avgCost
+  // A, both write divergent results based on stale state). The lock is
+  // released when the transaction commits.
+  await tx.$queryRaw`SELECT id FROM "Ingredient" WHERE id = ${args.ingredientId} FOR UPDATE`;
   const ing = await tx.ingredient.findUniqueOrThrow({
     where: { id: args.ingredientId },
     select: { id: true, currentStock: true, avgCostCents: true, tenantId: true },

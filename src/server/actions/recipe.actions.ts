@@ -44,22 +44,25 @@ export async function upsertRecipeAction(
   });
   if (!variant) return { ok: false, error: "Menu variant not found." };
 
-  // Confirm all ingredient IDs belong to this tenant
   const ingredientIds = data.items.map((i) => i.ingredientId);
-  if (ingredientIds.length > 0) {
-    const owned = await prisma.ingredient.findMany({
-      where: { id: { in: ingredientIds }, tenantId: ctx.tenantId, deletedAt: null },
-      select: { id: true },
-    });
-    if (owned.length !== new Set(ingredientIds).size)
-      return { ok: false, error: "One or more ingredients are not in this tenant." };
-  }
-  // Detect duplicate ingredients in payload
+  // Detect duplicate ingredients in payload (cheap pre-check, doesn't race).
   if (new Set(ingredientIds).size !== ingredientIds.length) {
     return { ok: false, error: "Each ingredient may appear at most once per recipe." };
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    // Re-validate ingredient ownership INSIDE the tx so concurrent deletes
+    // can't slip past the check (TOCTOU).
+    if (ingredientIds.length > 0) {
+      const owned = await tx.ingredient.findMany({
+        where: { id: { in: ingredientIds }, tenantId: ctx.tenantId, deletedAt: null },
+        select: { id: true },
+      });
+      if (owned.length !== new Set(ingredientIds).size) {
+        throw new Error("INGREDIENT_NOT_OWNED");
+      }
+    }
+
     const recipe = await tx.recipe.upsert({
       where: { variantId: data.variantId },
       update: { notes: data.notes || null },
@@ -104,7 +107,14 @@ export async function upsertRecipeAction(
     }
     const costCents = await refreshRecipeCost(tx, recipe.id);
     return { recipeId: recipe.id, costCents };
+  }).catch((err: unknown) => {
+    if (err instanceof Error && err.message === "INGREDIENT_NOT_OWNED") {
+      return { error: "One or more ingredients are not in this tenant." } as const;
+    }
+    throw err;
   });
+
+  if ("error" in result) return { ok: false, error: result.error };
 
   await audit({
     action: "RECIPE_UPDATED",

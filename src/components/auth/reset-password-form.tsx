@@ -23,6 +23,15 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const [done, setDone] = React.useState(false);
   const [serverError, setServerError] = React.useState<string | null>(null);
 
+  // Strip the token from the URL bar + history on mount so it doesn't leak
+  // via referer to next pages, screenshots, or the user's address bar.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.search.includes("token=")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   const {
     register,
     handleSubmit,

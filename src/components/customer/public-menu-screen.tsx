@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldError, FieldHint, FormField } from "@/components/ui/form-field";
 import { placePublicOrderAction } from "@/server/actions/public-order.actions";
+import { validateCouponAction } from "@/server/actions/coupon.actions";
 import { computeTotals, lineKey, type CartLine } from "@/lib/orders/cart";
 import { useFavoriteItems } from "@/lib/customer/favorites";
 import { haptic } from "@/lib/ui/haptics";
@@ -145,6 +146,15 @@ export function PublicMenuScreen(props: Props) {
   // Tip is captured in cents. Presets are computed against subtotal at render
   // time so they always match what the user is about to be charged.
   const [tipCents, setTipCents] = React.useState(0);
+  // Coupon: input string + validated state from server preview. Final discount
+  // is recomputed server-side at submit, this is just for showing the UI cue.
+  const [couponInput, setCouponInput] = React.useState("");
+  const [couponState, setCouponState] = React.useState<
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "ok"; code: string; description: string; discountCents: number }
+    | { status: "error"; message: string }
+  >({ status: "idle" });
 
   const filtered = props.items.filter((i) => i.categoryId === activeCategory);
   // Public menu shows tax/service computed by the server on submit; here we
@@ -237,6 +247,7 @@ export function PublicMenuScreen(props: Props) {
         })),
         notes: orderNotes,
         tipCents,
+        couponCode: couponState.status === "ok" ? couponState.code : "",
         idempotencyKey,
       });
     } catch {
@@ -731,6 +742,60 @@ export function PublicMenuScreen(props: Props) {
                 onChange={(e) => setOrderNotes(e.target.value)}
               />
             </FormField>
+            {/* Coupon code input. Server is the source of truth on discount;
+                this is just for live preview + clear-eligibility cue. */}
+            <FormField>
+              <Label htmlFor="public-coupon">Promo code (optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="public-coupon"
+                  placeholder="e.g. WELCOME10"
+                  value={couponInput}
+                  onChange={(e) => {
+                    setCouponInput(e.target.value.toUpperCase());
+                    if (couponState.status !== "idle") setCouponState({ status: "idle" });
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={couponState.status === "checking"}
+                  disabled={couponInput.trim().length < 3}
+                  onClick={async () => {
+                    setCouponState({ status: "checking" });
+                    const res = await validateCouponAction({
+                      slug: props.slug,
+                      code: couponInput.trim(),
+                      subtotalCents: subtotal,
+                      channel,
+                    });
+                    if (res.ok) {
+                      haptic.success();
+                      setCouponState({
+                        status: "ok",
+                        code: res.data.code,
+                        description: res.data.description,
+                        discountCents: res.data.discountCents,
+                      });
+                    } else {
+                      haptic.warn();
+                      setCouponState({ status: "error", message: res.error });
+                    }
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+              {couponState.status === "ok" ? (
+                <p className="mt-1 text-xs text-success">
+                  ✓ {couponState.description} — saving {formatMoney(couponState.discountCents)}
+                </p>
+              ) : couponState.status === "error" ? (
+                <FieldError message={couponState.message} />
+              ) : null}
+            </FormField>
             {/* Tip selector — table dine-in skips it (tip is at the table). */}
             {props.mode !== "table" ? (
               <FormField>
@@ -800,7 +865,15 @@ export function PublicMenuScreen(props: Props) {
           <DialogFooter>
             <Button onClick={() => setCheckout(false)} variant="ghost">Back</Button>
             <Button onClick={submit} loading={submitting}>
-              Place order · {formatMoney(subtotal + tipCents)}
+              Place order ·{" "}
+              {formatMoney(
+                Math.max(
+                  0,
+                  subtotal +
+                    tipCents -
+                    (couponState.status === "ok" ? couponState.discountCents : 0),
+                ),
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
