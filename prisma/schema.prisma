@@ -31,6 +31,13 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   SUSPENDED
+  LIFETIME
+}
+
+enum PlanInterval {
+  MONTH
+  YEAR
+  LIFETIME
 }
 
 enum CuisineType {
@@ -151,6 +158,12 @@ enum NotificationType {
   PAYMENT_RECORDED
 }
 
+enum DealType {
+  PERCENT_OFF     // e.g. 10% off any order
+  FLAT_OFF        // e.g. Rs 100 off any order
+  FREE_DELIVERY   // waive delivery charge
+}
+
 enum AuditAction {
   TENANT_CREATED
   USER_CREATED
@@ -259,8 +272,24 @@ model User {
   auditLogs            AuditLog[]
   deliveryAssignments  DeliveryAssignment[]
   deliveryCashEnvelopes DeliveryCashSubmission[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@index([email])
+}
+
+// One-time use, short-lived password reset tokens. The raw token is sent via
+// email; only its sha256 hash is stored so a DB leak doesn't expose live links.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // ----------------------------- TENANTS -------------------------------
@@ -292,6 +321,15 @@ model Tenant {
   whatsappEnabled Boolean @default(false)
   whatsappNumber  String?
 
+  // Delivery service area — one or both can be set.
+  // deliveryRadiusKm: circular radius from the primary branch (geodesic km).
+  // deliveryAreas: allow-list of keywords matched in the address (case-insensitive).
+  // Both null = no zone check (delivers anywhere hasDelivery is on).
+  deliveryRadiusKm Decimal? @db.Decimal(5, 2)
+  deliveryAreas    String[] @default([])
+  deliveryFeeCents Int      @default(0)
+  deliveryMinOrderCents Int @default(0)
+
   onboardedAt DateTime?
 
   createdAt DateTime  @default(now())
@@ -315,6 +353,8 @@ model Tenant {
   deliveryCashEnvelopes DeliveryCashSubmission[]
   whatsappThreads     WhatsAppThread[]
   notifications       Notification[]
+  deals               Deal[]
+  reviews             Review[]
   auditLogs           AuditLog[]
 
   @@index([slug])
@@ -704,6 +744,9 @@ model Order {
   // Idempotency key prevents duplicate POS submits (e.g. double-tap).
   idempotencyKey String? @unique
   createdById  String?
+  // Customer user (NextAuth User) who placed this order via the public site.
+  // NULL for walk-in POS orders or guest (unauthenticated) orders on table QR.
+  customerUserId String?
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -724,6 +767,7 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([branchId, status])
+  @@index([customerUserId])
 }
 
 model OrderItem {
@@ -895,6 +939,68 @@ model WhatsAppMessage {
   @@index([threadId, createdAt])
 }
 
+// ----------------------------- DEALS ---------------------------------
+
+model Deal {
+  id          String   @id @default(cuid())
+  tenantId    String
+  title       String
+  subtitle    String?
+  // e.g. 1000 means 10.00% for PERCENT_OFF
+  percentBps  Int?
+  // FLAT_OFF amount in paisa
+  flatOffCents Int?
+  minOrderCents Int    @default(0)
+  type        DealType
+  heroImageUrl String?
+  // Optional hex color override for banner background (defaults to brand)
+  bgColor     String?
+  ctaLabel    String?  // e.g. "Order now"
+  // Scheduling — null endAt = runs indefinitely
+  startsAt    DateTime @default(now())
+  endsAt      DateTime?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, sortOrder])
+}
+
+// ----------------------------- REVIEWS -------------------------------
+
+model Review {
+  id        String  @id @default(cuid())
+  tenantId  String
+  // The logged-in customer who wrote this review.
+  userId    String
+  // Optional link to the order that prompted this review.
+  orderId   String?
+  // 1..5 stars
+  rating    Int
+  title     String?
+  body      String?
+  // Moderation — tenant can hide abusive / off-topic reviews.
+  isHidden  Boolean @default(false)
+  // Owner / manager can leave a single public reply.
+  ownerReply   String?
+  ownerRepliedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, orderId])
+  @@index([tenantId, isHidden, createdAt])
+  @@index([userId])
+}
+
 // ----------------------------- NOTIFICATIONS --------------------------
 
 model Notification {
@@ -923,24 +1029,42 @@ model Notification {
 // ----------------------------- BILLING -------------------------------
 
 model Plan {
-  id          String  @id @default(cuid())
-  code        String  @unique // "trial" | "basic" | "pro" | "enterprise"
+  id          String       @id @default(cuid())
+  code        String       @unique // "starter" | "growth" | "enterprise" | "lifetime"
   name        String
+  tagline     String?
   description String?
-  priceCents  Int     @default(0) // monthly, in paisa (PKR) for local; cents for USD via Stripe
-  currency    String  @default("PKR")
+  // Sort on pricing page, lowest tier first.
+  sortOrder   Int          @default(0)
+  // MONTH / YEAR / LIFETIME. LIFETIME plans ignore renewsAt.
+  interval    PlanInterval @default(MONTH)
+  priceCents  Int          @default(0)
+  currency    String       @default("PKR")
+  // "Old" price shown struck-through for urgency marketing (optional).
+  compareAtPriceCents Int? @default(0)
 
+  // Feature limits / flags — customers compare these on pricing page.
   maxBranches    Int     @default(1)
   maxStaff       Int     @default(5)
+  maxMenuItems   Int     @default(50)
+  maxMonthlyOrders Int   @default(500)
   whatsappEnabled Boolean @default(false)
+  deliveryZonesEnabled Boolean @default(false)
+  customDomainEnabled Boolean @default(false)
+  prioritySupport Boolean @default(false)
   apiEnabled      Boolean @default(false)
 
-  isActive Boolean @default(true)
+  // Public visibility + marketing
+  isActive   Boolean @default(true)
+  isFeatured Boolean @default(false)
+  isPublic   Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   subscriptions Subscription[]
+
+  @@index([isActive, sortOrder])
 }
 
 model Subscription {
@@ -949,9 +1073,11 @@ model Subscription {
   planId   String
   status   SubscriptionStatus @default(TRIALING)
 
-  trialEndsAt    DateTime?
+  trialEndsAt      DateTime?
   currentPeriodEnd DateTime?
-  canceledAt     DateTime?
+  canceledAt       DateTime?
+  // For LIFETIME purchases we still record when paid for auditability.
+  lifetimePurchasedAt DateTime?
 
   stripeCustomerId     String?
   stripeSubscriptionId String?
@@ -959,9 +1085,39 @@ model Subscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  plan   Plan   @relation(fields: [planId], references: [id])
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan     Plan            @relation(fields: [planId], references: [id])
+  invoices PlanInvoice[]
 
+  @@index([status])
+}
+
+// Records of every payment made by a tenant for their plan — monthly renewal,
+// lifetime purchase, upgrade, manual bank transfer, etc. One row per payment.
+model PlanInvoice {
+  id              String   @id @default(cuid())
+  subscriptionId  String
+  tenantId        String
+  planCode        String
+  periodStart     DateTime
+  periodEnd       DateTime?
+  amountCents     Int
+  currency        String   @default("PKR")
+  method          String // "CARD", "CASH", "JAZZCASH", "EASYPAISA", "BANK", "MANUAL"
+  status          String   @default("PENDING") // "PENDING" | "PAID" | "FAILED" | "REFUNDED"
+  reference       String? // external txn id / bank reference
+  screenshotUrl   String? // for manual bank transfer verification
+  approvedById    String? // super-admin user who approved a manual payment
+  approvedAt      DateTime?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([subscriptionId])
   @@index([status])
 }
 
