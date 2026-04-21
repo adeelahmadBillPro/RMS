@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldError, FieldHint, FormField } from "@/components/ui/form-field";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { placePublicOrderAction } from "@/server/actions/public-order.actions";
 import { validateCouponAction } from "@/server/actions/coupon.actions";
 import { computeTotals, lineKey, type CartLine } from "@/lib/orders/cart";
@@ -724,12 +725,14 @@ export function PublicMenuScreen(props: Props) {
             {channel === "DELIVERY" ? (
               <FormField>
                 <Label htmlFor="public-address" required>Delivery address</Label>
-                <Input
+                <AddressAutocomplete
                   id="public-address"
                   value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  onChange={(v) => setDeliveryAddress(v)}
+                  placeholder="House #, street, area, city"
                   invalid={!!fieldErrors.deliveryAddress}
                 />
+                <FieldHint>Pick a suggestion for faster delivery, or type freely.</FieldHint>
                 <FieldError message={fieldErrors.deliveryAddress} />
               </FormField>
             ) : null}

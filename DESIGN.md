@@ -162,7 +162,7 @@ These are anti-patterns for EasyMenu specifically. If you find yourself reaching
 
 These were considered and explicitly deferred:
 
-- **Address autocomplete** (Google Maps Places API) — needs paid API key, defer to first paying tenant
+- ~~**Address autocomplete** (Google Maps Places API)~~ — shipped via [`AddressAutocomplete`](src/components/ui/address-autocomplete.tsx). Needs `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` set in `.env.local`; falls back to plain input if missing. Setup steps in [`.env.example`](.env.example).
 - **Phone OTP verification** — needs SMS provider (Twilio/Vonage/local PK gateway). Currently phone is unverified
 - **Favorites synced to DB** — currently localStorage-per-device. Sync needs `CustomerFavorite` model + login flow
 - **SMS notifications on order status** — same SMS provider dependency as OTP
