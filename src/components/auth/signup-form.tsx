@@ -13,6 +13,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { FieldError, FormField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/use-toast";
+import { GoogleSignInButton, AuthDivider } from "./social-auth";
+import { PasswordStrengthMeter } from "./password-strength-meter";
 
 export function SignupForm() {
   const router = useRouter();
@@ -24,12 +26,14 @@ export function SignupForm() {
     register,
     handleSubmit,
     setError,
-    formState: { errors, isValid },
+    watch,
+    formState: { errors },
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
     mode: "onBlur",
     defaultValues: { acceptTerms: true as unknown as true },
   });
+  const passwordValue = watch("password") ?? "";
 
   async function onSubmit(values: SignupInput) {
     setSubmitting(true);
@@ -65,7 +69,10 @@ export function SignupForm() {
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-4">
+      <GoogleSignInButton label="Sign up with Google" />
+      <AuthDivider />
+      <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {serverError ? (
         <div
           role="alert"
@@ -75,53 +82,60 @@ export function SignupForm() {
         </div>
       ) : null}
 
-      <FormField>
-        <Label htmlFor="name" required>
-          Your name
-        </Label>
-        <Input id="name" autoComplete="name" invalid={!!errors.name} {...register("name")} />
-        <FieldError message={errors.name?.message} />
-      </FormField>
+      <div className="grid gap-4 md:grid-cols-2">
+        <FormField>
+          <Label htmlFor="name" required>
+            Your name
+          </Label>
+          <Input id="name" autoComplete="name" invalid={!!errors.name} {...register("name")} />
+          <FieldError message={errors.name?.message} />
+        </FormField>
 
-      <FormField>
-        <Label htmlFor="email" required>
-          Email
-        </Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          invalid={!!errors.email}
-          {...register("email")}
-        />
-        <FieldError message={errors.email?.message} />
-      </FormField>
+        <FormField>
+          <Label htmlFor="email" required>
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            invalid={!!errors.email}
+            {...register("email")}
+          />
+          <FieldError message={errors.email?.message} />
+        </FormField>
+      </div>
 
-      <FormField>
-        <Label htmlFor="password" required>
-          Password
-        </Label>
-        <PasswordInput
-          id="password"
-          autoComplete="new-password"
-          invalid={!!errors.password}
-          {...register("password")}
-        />
-        <FieldError message={errors.password?.message} />
-      </FormField>
+      <div className="grid gap-4 md:grid-cols-2">
+        <FormField>
+          <Label htmlFor="password" required>
+            Password
+          </Label>
+          <PasswordInput
+            id="password"
+            autoComplete="new-password"
+            invalid={!!errors.password}
+            {...register("password")}
+          />
+          <FieldError message={errors.password?.message} />
+          <div className="mt-2">
+            <PasswordStrengthMeter password={passwordValue} />
+          </div>
+        </FormField>
 
-      <FormField>
-        <Label htmlFor="confirmPassword" required>
-          Confirm password
-        </Label>
-        <PasswordInput
-          id="confirmPassword"
-          autoComplete="new-password"
-          invalid={!!errors.confirmPassword}
-          {...register("confirmPassword")}
-        />
-        <FieldError message={errors.confirmPassword?.message} />
-      </FormField>
+        <FormField>
+          <Label htmlFor="confirmPassword" required>
+            Confirm
+          </Label>
+          <PasswordInput
+            id="confirmPassword"
+            autoComplete="new-password"
+            invalid={!!errors.confirmPassword}
+            {...register("confirmPassword")}
+          />
+          <FieldError message={errors.confirmPassword?.message} />
+        </FormField>
+      </div>
 
       <label className="flex items-start gap-2 text-xs text-foreground-muted">
         <input
@@ -135,15 +149,10 @@ export function SignupForm() {
       </label>
       <FieldError message={errors.acceptTerms?.message} />
 
-      <Button
-        type="submit"
-        className="w-full"
-        loading={submitting}
-        disabled={!isValid}
-        title={!isValid ? "Fill out all required fields" : undefined}
-      >
+      <Button type="submit" className="w-full" loading={submitting}>
         {submitting ? "Creating account…" : "Create account"}
       </Button>
     </form>
+    </div>
   );
 }

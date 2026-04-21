@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { FieldError, FormField } from "@/components/ui/form-field";
+import { GoogleSignInButton, AuthDivider } from "./social-auth";
 
 export function LoginForm() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     mode: "onBlur",
@@ -67,7 +68,10 @@ export function LoginForm() {
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-4">
+      <GoogleSignInButton callbackUrl={explicitCallback ?? undefined} />
+      <AuthDivider />
+      <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {serverError ? (
         <div
           role="alert"
@@ -109,14 +113,10 @@ export function LoginForm() {
         <FieldError message={errors.password?.message} />
       </FormField>
 
-      <Button
-        type="submit"
-        className="w-full"
-        loading={submitting}
-        disabled={!isValid}
-      >
+      <Button type="submit" className="w-full" loading={submitting}>
         {submitting ? "Signing in…" : "Sign in"}
       </Button>
     </form>
+    </div>
   );
 }
