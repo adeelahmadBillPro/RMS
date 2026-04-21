@@ -156,16 +156,16 @@ export default async function TenantHome({ params }: { params: { tenantSlug: str
 
           <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
             <div>
-              <p className="flex items-center gap-1.5 font-mono text-xs text-white/70">
+              <p className="flex items-center gap-1.5 font-mono text-xs text-white/85 drop-shadow-sm">
                 <Flame className="h-3.5 w-3.5" />
                 {greeting}
               </p>
-              <h1 className="mt-2 text-h1 md:text-display">{tenant.name}</h1>
-              <p className="mt-1 text-sm text-white/85">
+              <h1 className="mt-2 text-h1 drop-shadow-md md:text-display">{tenant.name}</h1>
+              <p className="mt-1 text-sm text-white/85 drop-shadow-sm">
                 {ordersToday.length === 0
-                  ? "Let’s cook up your first order of the day 🍳"
+                  ? "Let’s cook up your first order of the day."
                   : activeOrders > 0
-                    ? `${activeOrders} order${activeOrders === 1 ? "" : "s"} cooking — you’ve got this 🔥`
+                    ? `${activeOrders} order${activeOrders === 1 ? "" : "s"} in the kitchen right now.`
                     : `${ordersToday.length} served today · avg ticket ${formatMoney(avgTicketCents)}`}
               </p>
             </div>

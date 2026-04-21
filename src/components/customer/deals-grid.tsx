@@ -70,7 +70,7 @@ export function DealsGrid({
       <header className="mb-3 flex items-end justify-between">
         <div>
           <p className="font-mono text-xs uppercase tracking-wide text-primary">Today's deals</p>
-          <h2 className="text-h2">Grab a deal 🔥</h2>
+          <h2 className="text-h2">Grab a deal</h2>
         </div>
         <Link href={menuHref} className="text-sm font-medium text-primary hover:underline">
           Browse menu →

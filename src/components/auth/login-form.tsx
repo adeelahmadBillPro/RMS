@@ -7,6 +7,7 @@ import { signIn, getSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth.schema";
+import { safeCallbackUrl } from "@/lib/auth/redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -17,7 +18,8 @@ import { GoogleSignInButton, AuthDivider } from "./social-auth";
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const explicitCallback = params.get("callbackUrl");
+  // Validated against same-origin allow-list — never trust the raw query value.
+  const explicitCallback = safeCallbackUrl(params.get("callbackUrl"), "");
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -69,7 +71,7 @@ export function LoginForm() {
 
   return (
     <div className="space-y-4">
-      <GoogleSignInButton callbackUrl={explicitCallback ?? undefined} />
+      <GoogleSignInButton callbackUrl={explicitCallback || undefined} />
       <AuthDivider />
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {serverError ? (

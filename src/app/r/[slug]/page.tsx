@@ -311,8 +311,11 @@ export default async function PublicLanding({ params }: { params: { slug: string
                     <p className="font-mono font-semibold">
                       {it.variants[0]?.priceCents ? formatMoney(it.variants[0].priceCents) : "—"}
                     </p>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-110">
-                      <ArrowRight className="h-3 w-3" />
+                    <span
+                      aria-hidden
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-110 group-active:scale-95"
+                    >
+                      <ArrowRight className="h-3.5 w-3.5" />
                     </span>
                   </div>
                 </div>

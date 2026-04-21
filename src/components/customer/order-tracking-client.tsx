@@ -10,11 +10,17 @@ import {
   MapPin,
   Package,
   PartyPopper,
+  X,
   XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { cancelPublicOrderAction } from "@/server/actions/public-order.actions";
 import { useRealtimeSubscription, isRealtimeConfigured } from "@/lib/realtime/client";
 import { tenantChannel } from "@/lib/realtime";
+import { haptic } from "@/lib/ui/haptics";
 import { formatMoney } from "@/lib/utils";
 
 type TrackingOrder = {
@@ -73,7 +79,7 @@ function stepsFor(order: TrackingOrder): readonly string[] {
 }
 
 export function OrderTrackingClient({
-  slug: _slug,
+  slug,
   tenantId,
   initial,
 }: {
@@ -82,6 +88,10 @@ export function OrderTrackingClient({
   initial: TrackingOrder;
 }) {
   const [order, setOrder] = React.useState<TrackingOrder>(initial);
+  const { toast } = useToast();
+  const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [cancelPhone, setCancelPhone] = React.useState("");
+  const [cancelling, setCancelling] = React.useState(false);
 
   // Live refresh: realtime event OR 5s poll as fallback
   const refresh = React.useCallback(async () => {
@@ -163,8 +173,15 @@ export function OrderTrackingClient({
           <h1 className="mt-1 text-h1">
             {order.status === "COMPLETED"
               ? "All done — enjoy!"
-              : STEP_LABEL[order.status] ?? order.status}
+              : order.status === "NEW" && minutesSince < 2
+                ? "We’ve got your order!"
+                : STEP_LABEL[order.status] ?? order.status}
           </h1>
+          {order.status === "NEW" && minutesSince < 2 ? (
+            <p className="mt-1 text-sm text-foreground-muted">
+              The kitchen is reading the ticket. We’ll start cooking in a moment.
+            </p>
+          ) : null}
           {order.status !== "COMPLETED" ? (
             <p className="mt-1 flex items-center justify-center gap-1 text-sm text-foreground-muted">
               <Clock className="h-3.5 w-3.5" />
@@ -243,6 +260,73 @@ export function OrderTrackingClient({
           )}
         </div>
       </div>
+
+      {/* Cancel — only while still NEW (kitchen hasn't started). */}
+      {order.status === "NEW" ? (
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          {!cancelOpen ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-foreground-muted">
+                Changed your mind? You can cancel until the kitchen starts cooking.
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-danger hover:bg-danger-subtle"
+                onClick={() => setCancelOpen(true)}
+              >
+                <X className="h-4 w-4" /> Cancel order
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Confirm phone to cancel</p>
+              <p className="text-xs text-foreground-muted">
+                For your safety, enter the phone number used to place this order.
+              </p>
+              <Input
+                placeholder="03001234567"
+                value={cancelPhone}
+                onChange={(e) => setCancelPhone(e.target.value)}
+                inputMode="tel"
+              />
+              <div className="flex justify-end gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setCancelOpen(false)}>
+                  Keep order
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  loading={cancelling}
+                  onClick={async () => {
+                    setCancelling(true);
+                    try {
+                      const res = await cancelPublicOrderAction({
+                        slug,
+                        orderId: order.id,
+                        phone: cancelPhone.trim(),
+                      });
+                      if (!res.ok) {
+                        haptic.warn();
+                        toast({ variant: "danger", title: "Couldn’t cancel", description: res.error });
+                      } else {
+                        haptic.success();
+                        toast({ variant: "success", title: "Order cancelled" });
+                        setCancelOpen(false);
+                        setOrder((o) => ({ ...o, status: "CANCELLED", cancelReason: "Cancelled by customer" }));
+                      }
+                    } finally {
+                      setCancelling(false);
+                    }
+                  }}
+                >
+                  Cancel order
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       <OrderSummary order={order} />
     </div>

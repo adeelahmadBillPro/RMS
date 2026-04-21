@@ -28,6 +28,7 @@ export const publicOrderSchema = z
     deliveryAddress: z.string().trim().max(300).optional().or(z.literal("")),
     items: z.array(publicOrderItemSchema).min(1, "Cart is empty").max(40, "Up to 40 lines"),
     notes: z.string().trim().max(200).optional().or(z.literal("")),
+    tipCents: z.number().int().min(0).max(1_000_000).optional(),
     idempotencyKey: z.string().min(8).max(64),
   })
   .refine(

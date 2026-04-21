@@ -124,7 +124,8 @@ export function Sidebar({ slug }: SidebarProps) {
               type="button"
               onClick={resetOrder}
               title="Reset to default order"
-              className="flex h-7 w-7 items-center justify-center rounded-md text-foreground-muted hover:bg-surface-muted hover:text-foreground"
+              aria-label="Reset sidebar to default order"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-foreground-muted transition-transform hover:bg-surface-muted hover:text-foreground active:scale-95"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -133,8 +134,10 @@ export function Sidebar({ slug }: SidebarProps) {
             type="button"
             onClick={() => setEditing((v) => !v)}
             title={editing ? "Done" : "Rearrange menu"}
+            aria-label={editing ? "Save sidebar order" : "Rearrange sidebar menu"}
+            aria-pressed={editing}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+              "flex h-9 w-9 items-center justify-center rounded-md transition-all active:scale-95",
               editing
                 ? "bg-primary text-primary-foreground"
                 : "text-foreground-muted hover:bg-surface-muted hover:text-foreground",

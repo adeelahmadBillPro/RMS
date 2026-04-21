@@ -156,11 +156,22 @@ export async function placePublicOrderAction(
   });
 
   const deliveryChargeCents = data.channel === "DELIVERY" ? tenant.deliveryFeeCents : 0;
+  // Cap tip server-side to a sane multiple of the subtotal so a hostile client
+  // can't post a 9_999_999 tip and trigger weird invoice/audit edges.
+  const subtotalForCap = lines.reduce(
+    (s, l) =>
+      s +
+      (l.unitPriceCents + l.modifiers.reduce((m, x) => m + x.priceDeltaCents, 0)) * l.quantity,
+    0,
+  );
+  const requestedTip = Math.max(0, Math.floor(data.tipCents ?? 0));
+  const tipCents = Math.min(requestedTip, subtotalForCap * 2);
   const totals = computeTotals({
     lines,
     taxBps: branch.taxBps,
     serviceBps: branch.serviceBps,
     deliveryChargeCents,
+    tipCents,
   });
   if (
     data.channel === "DELIVERY" &&
@@ -282,3 +293,77 @@ export async function placePublicOrderAction(
   return { ok: true, data: { orderNumber: order.orderNumber, trackingId: order.id } };
 }
 
+/**
+ * Customer-side cancellation. Allowed only while the kitchen hasn't started
+ * cooking (status === "NEW"). Identity is established by either the logged-in
+ * customer's user id, or by matching the phone number that placed the order.
+ */
+export async function cancelPublicOrderAction(input: {
+  slug: string;
+  orderId: string;
+  phone?: string;
+}): Promise<ActionResult<null>> {
+  if (!input?.orderId || !input?.slug) {
+    return { ok: false, error: "Missing order." };
+  }
+  const session = await getSession();
+  const tenant = await prisma.tenant.findFirst({
+    where: { slug: input.slug, deletedAt: null },
+    select: { id: true },
+  });
+  if (!tenant) return { ok: false, error: "Restaurant not found." };
+
+  const order = await prisma.order.findFirst({
+    where: { id: input.orderId, tenantId: tenant.id },
+    select: {
+      id: true,
+      status: true,
+      customerPhone: true,
+      customerUserId: true,
+      orderNumber: true,
+    },
+  });
+  if (!order) return { ok: false, error: "Order not found." };
+
+  // Identity: must match either the logged-in user's id or the order phone.
+  const matchesUser = !!session?.user?.id && session.user.id === order.customerUserId;
+  const matchesPhone =
+    !!input.phone && input.phone.replace(/\s+/g, "") === (order.customerPhone ?? "").replace(/\s+/g, "");
+  if (!matchesUser && !matchesPhone) {
+    return { ok: false, error: "We can’t verify this is your order. Use your phone to confirm." };
+  }
+
+  if (order.status !== "NEW") {
+    return {
+      ok: false,
+      error:
+        order.status === "CANCELLED"
+          ? "This order is already cancelled."
+          : "The kitchen has already started — please call the restaurant to cancel.",
+    };
+  }
+
+  const now = new Date();
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: now,
+      cancelReason: "Cancelled by customer",
+    },
+  });
+  await audit({
+    action: "ORDER_CANCELLED",
+    tenantId: tenant.id,
+    userId: session?.user?.id ?? null,
+    metadata: { orderId: order.id, orderNumber: order.orderNumber, source: "customer" },
+  });
+  await realtime.trigger(tenantChannel(tenant.id), REALTIME_EVENTS.ORDER_UPDATED, {
+    id: order.id,
+    status: "CANCELLED",
+  });
+  revalidatePath(`/r/${input.slug}/order/${order.id}`);
+  revalidatePath(`/${input.slug}/orders`);
+  revalidatePath(`/${input.slug}/kds`);
+  return { ok: true, data: null };
+}

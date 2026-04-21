@@ -51,7 +51,15 @@ export function PasswordStrengthMeter({ password = "" }: { password?: string }) 
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1.5">
+      <div
+        role="progressbar"
+        aria-label="Password strength"
+        aria-valuemin={0}
+        aria-valuemax={segments}
+        aria-valuenow={filled}
+        aria-valuetext={strength.label}
+        className="flex items-center gap-1.5"
+      >
         <div className="flex flex-1 gap-1">
           {Array.from({ length: segments }).map((_, i) => (
             <div
@@ -63,7 +71,7 @@ export function PasswordStrengthMeter({ password = "" }: { password?: string }) 
             />
           ))}
         </div>
-        <span className={cn("text-[11px] font-medium", TONE_TEXT[strength.tone])}>
+        <span className={cn("text-[11px] font-medium", TONE_TEXT[strength.tone])} aria-hidden>
           {strength.label}
         </span>
       </div>

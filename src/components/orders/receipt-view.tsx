@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Download, MessageCircle, Printer, Share2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Download, MessageCircle, Printer, RotateCcw, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { lineKey, type CartLine } from "@/lib/orders/cart";
+import { haptic } from "@/lib/ui/haptics";
 import { formatMoney } from "@/lib/utils";
 
 type ReceiptItem = {
@@ -12,6 +15,14 @@ type ReceiptItem = {
   modifiers: { name: string; priceCents: number }[];
   notes: string | null;
   lineTotalCents: number;
+  // Optional fields needed for "reorder" — when present, ReceiptView can
+  // rebuild a cart and bounce the customer back to the menu with it
+  // pre-loaded.
+  variantId?: string;
+  menuItemId?: string;
+  unitPriceCents?: number;
+  variantName?: string;
+  modifierIds?: string[];
 };
 
 export type ReceiptOrder = {
@@ -47,11 +58,47 @@ export function ReceiptView({
   order,
   tenant,
   branch,
+  reorderSlug,
 }: {
   order: ReceiptOrder;
   tenant: ReceiptTenant;
   branch: { name: string; address: string } | null;
+  /** When set, render a "Reorder" button that pre-loads the cart and
+   *  navigates to /r/{slug}/menu. */
+  reorderSlug?: string;
 }) {
+  const router = useRouter();
+
+  // Rebuild cart lines from receipt items + drop into localStorage so the
+  // menu screen hydrates with this cart when it mounts. Lines that don't
+  // carry variant snapshots (legacy receipts) are skipped — their absence
+  // is rare and the menu would have rejected them anyway.
+  function reorder() {
+    if (!reorderSlug) return;
+    const lines: CartLine[] = order.items
+      .filter((it) => it.variantId && it.menuItemId && it.unitPriceCents != null)
+      .map((it) => ({
+        lineKey: lineKey(it.variantId!, it.modifierIds ?? []),
+        menuItemId: it.menuItemId!,
+        variantId: it.variantId!,
+        itemNameSnap: it.name,
+        variantNameSnap: it.variantName ?? it.variant,
+        unitPriceCents: it.unitPriceCents!,
+        quantity: it.qty,
+        notes: it.notes ?? "",
+        // Modifiers without snapshot ids are dropped — server will re-price.
+        modifiers: [],
+      }));
+    if (lines.length === 0) return;
+    try {
+      window.localStorage.setItem(`easymenu:cart:v1:${reorderSlug}`, JSON.stringify(lines));
+    } catch {
+      /* quota / private mode — fall through to navigate */
+    }
+    haptic.success();
+    router.push(`/r/${reorderSlug}/menu`);
+  }
+
   async function share() {
     const url = window.location.href;
     if (navigator.share) {
@@ -97,6 +144,11 @@ export function ReceiptView({
   return (
     <div className="mx-auto max-w-md py-6 print:py-0">
       <div className="print:hidden mb-4 flex flex-wrap items-center justify-end gap-2 px-4">
+        {reorderSlug ? (
+          <Button size="sm" onClick={reorder}>
+            <RotateCcw className="h-4 w-4" /> Reorder
+          </Button>
+        ) : null}
         <Button variant="secondary" size="sm" onClick={whatsappShare}>
           <MessageCircle className="h-4 w-4" /> WhatsApp
         </Button>

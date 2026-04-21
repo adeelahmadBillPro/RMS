@@ -18,8 +18,8 @@
 
     /* LIGHT MODE — text */
     --foreground: 24 10% 10%;           /* #1C1917 */
-    --foreground-muted: 25 5% 32%;      /* #57534E */
-    --foreground-subtle: 24 6% 64%;     /* #A8A29E */
+    --foreground-muted: 25 5% 32%;      /* #57534E — 6.5:1 on surface-muted (AA) */
+    --foreground-subtle: 25 6% 48%;     /* darker than before for AA-large compliance */
 
     /* BRAND — appetizing orange */
     --primary: 21 90% 48%;              /* #EA580C */
@@ -54,8 +54,8 @@
     --border-strong: 28 8% 25%;         /* #44403C */
 
     --foreground: 60 9% 98%;            /* #FAFAF9 */
-    --foreground-muted: 24 6% 64%;      /* #A8A29E */
-    --foreground-subtle: 25 5% 47%;     /* #78716C */
+    --foreground-muted: 24 6% 70%;      /* lighter for AA contrast on dark bg */
+    --foreground-subtle: 25 5% 55%;     /* dark-mode subtle — readable on near-black */
 
     /* Brand shifts brighter in dark for contrast */
     --primary: 25 95% 62%;              /* #FB923C */

@@ -18,7 +18,11 @@ export default async function CustomerReceiptPage({
       table: { select: { label: true } },
       items: {
         orderBy: { createdAt: "asc" },
-        include: { modifiers: { select: { modifierNameSnap: true, priceDeltaCents: true } } },
+        include: {
+        modifiers: {
+          select: { modifierId: true, modifierNameSnap: true, priceDeltaCents: true },
+        },
+      },
       },
       payments: {
         select: { method: true, amountCents: true, createdAt: true },
@@ -59,6 +63,13 @@ export default async function CustomerReceiptPage({
             qty: it.quantity,
             name: it.itemNameSnap,
             variant: it.variantNameSnap,
+            variantName: it.variantNameSnap,
+            variantId: it.variantId,
+            menuItemId: it.menuItemId,
+            unitPriceCents: it.unitPriceCents,
+            modifierIds: it.modifiers
+              .map((m) => m.modifierId)
+              .filter((id): id is string => id != null),
             modifiers: it.modifiers.map((m) => ({
               name: m.modifierNameSnap,
               priceCents: m.priceDeltaCents,
@@ -86,6 +97,7 @@ export default async function CustomerReceiptPage({
               }
             : null
         }
+        reorderSlug={params.slug}
       />
     </div>
   );

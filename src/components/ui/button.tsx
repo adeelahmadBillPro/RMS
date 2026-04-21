@@ -5,6 +5,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { haptic } from "@/lib/ui/haptics";
 
 const buttonVariants = cva(
   "relative isolate inline-flex items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -53,6 +54,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const handleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
       if (showShine) setShineKey((k) => k + 1);
+      // Light tap haptic on every button press — no-op on devices without it.
+      haptic.light();
       onClick?.(e);
     };
 

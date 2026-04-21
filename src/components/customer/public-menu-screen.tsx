@@ -32,6 +32,7 @@ import { FieldError, FieldHint, FormField } from "@/components/ui/form-field";
 import { placePublicOrderAction } from "@/server/actions/public-order.actions";
 import { computeTotals, lineKey, type CartLine } from "@/lib/orders/cart";
 import { useFavoriteItems } from "@/lib/customer/favorites";
+import { haptic } from "@/lib/ui/haptics";
 import { formatMoney } from "@/lib/utils";
 
 const CART_STORAGE_PREFIX = "easymenu:cart:v1:";
@@ -76,7 +77,20 @@ type Props = {
 export function PublicMenuScreen(props: Props) {
   const router = useRouter();
   const { toast } = useToast();
-  const [activeCategory, setActiveCategory] = React.useState<string>(props.categories[0]?.id ?? "");
+  // Only show categories that actually have at least one available item.
+  // Empty categories looked clickable but went to a blank grid.
+  const nonEmptyCategoryIds = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const it of props.items) set.add(it.categoryId);
+    return set;
+  }, [props.items]);
+  const visibleCategories = React.useMemo(
+    () => props.categories.filter((c) => nonEmptyCategoryIds.has(c.id)),
+    [props.categories, nonEmptyCategoryIds],
+  );
+  const [activeCategory, setActiveCategory] = React.useState<string>(
+    visibleCategories[0]?.id ?? props.categories[0]?.id ?? "",
+  );
   const [picker, setPicker] = React.useState<PublicItem | null>(null);
   const { data: session } = useSession();
   const { isFavorite, toggle: toggleFav } = useFavoriteItems(props.slug);
@@ -128,6 +142,9 @@ export function PublicMenuScreen(props: Props) {
   const [deliveryAddress, setDeliveryAddress] = React.useState("");
   const [orderNotes, setOrderNotes] = React.useState("");
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
+  // Tip is captured in cents. Presets are computed against subtotal at render
+  // time so they always match what the user is about to be charged.
+  const [tipCents, setTipCents] = React.useState(0);
 
   const filtered = props.items.filter((i) => i.categoryId === activeCategory);
   // Public menu shows tax/service computed by the server on submit; here we
@@ -163,6 +180,7 @@ export function PublicMenuScreen(props: Props) {
       modifiers: [],
     };
     addLine(line);
+    haptic.light();
   }
 
   /** Decrement count for the first matching line (the "no modifiers" one). */
@@ -171,6 +189,7 @@ export function PublicMenuScreen(props: Props) {
     if (!v) return;
     const key = lineKey(v.id, []);
     bumpLine(key, -1);
+    haptic.light();
   }
 
   function addLine(line: CartLine) {
@@ -201,24 +220,38 @@ export function PublicMenuScreen(props: Props) {
     setServerError(null);
     setFieldErrors({});
     const idempotencyKey = `public-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const res = await placePublicOrderAction({
-      slug: props.slug,
-      tableQr: props.mode === "table" ? props.tableQr : "",
-      channel,
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      deliveryAddress: channel === "DELIVERY" ? deliveryAddress.trim() : "",
-      items: cart.map((l) => ({
-        variantId: l.variantId,
-        quantity: l.quantity,
-        notes: l.notes ?? "",
-        modifierIds: l.modifiers.map((m) => m.modifierId),
-      })),
-      notes: orderNotes,
-      idempotencyKey,
-    });
+    let res: Awaited<ReturnType<typeof placePublicOrderAction>>;
+    try {
+      res = await placePublicOrderAction({
+        slug: props.slug,
+        tableQr: props.mode === "table" ? props.tableQr : "",
+        channel,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        deliveryAddress: channel === "DELIVERY" ? deliveryAddress.trim() : "",
+        items: cart.map((l) => ({
+          variantId: l.variantId,
+          quantity: l.quantity,
+          notes: l.notes ?? "",
+          modifierIds: l.modifiers.map((m) => m.modifierId),
+        })),
+        notes: orderNotes,
+        tipCents,
+        idempotencyKey,
+      });
+    } catch {
+      // Network drop / server crash mid-submit. Cart stays intact (in
+      // localStorage) so user can retry without losing it.
+      haptic.warn();
+      setServerError(
+        "Couldn’t reach the kitchen. Check your connection and try again — your cart is safe.",
+      );
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
     if (!res.ok) {
+      haptic.warn();
       // Friendlier message when an item went off-menu mid-session.
       const looksLikeOOS = /unavailable|out of stock|off.menu/i.test(res.error);
       setServerError(
@@ -229,6 +262,7 @@ export function PublicMenuScreen(props: Props) {
       if (res.fieldErrors) setFieldErrors(res.fieldErrors);
       return;
     }
+    haptic.success();
     setSuccess({ orderNumber: res.data.orderNumber, trackingId: res.data.trackingId });
     setCart([]);
     setCheckout(false);
@@ -364,25 +398,28 @@ export function PublicMenuScreen(props: Props) {
         </section>
       ) : null}
 
-      {/* Categories — container-aligned so it lines up with hero + items */}
-      <nav className="sticky top-16 z-10 mt-4 border-b border-border bg-background/95 backdrop-blur">
-        <div className="container flex gap-2 overflow-x-auto py-3">
-          {props.categories.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setActiveCategory(c.id)}
-              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                activeCategory === c.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-surface-muted text-foreground-muted hover:bg-border hover:text-foreground"
-              }`}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* Categories — container-aligned so it lines up with hero + items.
+          Empty categories are filtered out. */}
+      {visibleCategories.length > 0 ? (
+        <nav className="sticky top-16 z-10 mt-4 border-b border-border bg-background/95 backdrop-blur">
+          <div className="container flex gap-2 overflow-x-auto py-3">
+            {visibleCategories.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setActiveCategory(c.id)}
+                className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all active:scale-95 ${
+                  activeCategory === c.id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-surface-muted text-foreground-muted hover:bg-border hover:text-foreground"
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </nav>
+      ) : null}
 
       {/* Empty state when active category has nothing in it */}
       {filtered.length === 0 ? (
@@ -446,10 +483,11 @@ export function PublicMenuScreen(props: Props) {
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFav(it.id);
+                  haptic.light();
                 }}
                 aria-label={isFavorite(it.id) ? "Remove from favorites" : "Add to favorites"}
                 aria-pressed={isFavorite(it.id)}
-                className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 text-foreground-muted shadow-sm backdrop-blur transition-all hover:scale-110 hover:text-danger"
+                className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 text-foreground-muted shadow-sm backdrop-blur transition-all hover:scale-110 hover:text-danger active:scale-95"
               >
                 <Heart
                   className={`h-4 w-4 transition-colors ${
@@ -693,6 +731,45 @@ export function PublicMenuScreen(props: Props) {
                 onChange={(e) => setOrderNotes(e.target.value)}
               />
             </FormField>
+            {/* Tip selector — table dine-in skips it (tip is at the table). */}
+            {props.mode !== "table" ? (
+              <FormField>
+                <Label>Add a tip</Label>
+                <FieldHint>For the kitchen + rider. 100% goes to staff.</FieldHint>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {[
+                    { label: "None", value: 0 },
+                    { label: "5%", value: Math.round(subtotal * 0.05) },
+                    { label: "10%", value: Math.round(subtotal * 0.1) },
+                    { label: "15%", value: Math.round(subtotal * 0.15) },
+                  ].map((opt) => {
+                    const active = tipCents === opt.value;
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                          setTipCents(opt.value);
+                          haptic.light();
+                        }}
+                        className={`flex h-10 flex-col items-center justify-center rounded-md border text-xs font-medium transition-all active:scale-95 ${
+                          active
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border bg-background text-foreground-muted hover:border-primary/40 hover:text-foreground"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {opt.value > 0 ? (
+                          <span className="font-mono text-[10px] opacity-80">
+                            {formatMoney(opt.value)}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FormField>
+            ) : null}
             {props.mode === "table" ? (
               <p className="text-xs text-foreground-muted">
                 Sending to <Badge variant="info" className="ml-1">{props.tableLabel}</Badge>
@@ -723,7 +800,7 @@ export function PublicMenuScreen(props: Props) {
           <DialogFooter>
             <Button onClick={() => setCheckout(false)} variant="ghost">Back</Button>
             <Button onClick={submit} loading={submitting}>
-              Place order · {formatMoney(subtotal)}
+              Place order · {formatMoney(subtotal + tipCents)}
             </Button>
           </DialogFooter>
         </DialogContent>

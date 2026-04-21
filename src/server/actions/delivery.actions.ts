@@ -227,7 +227,9 @@ export async function collectCashAction(
     return { ok: false, error: "Cash already dropped to the envelope. Edit via manager." };
 
   const amount = rupeesToPaisa(parsed.data.collectedRupees);
-  if (amount > assignment.order.totalCents + 100) {
+  // Strict cap: collected cash cannot exceed order total. Riders should issue
+  // change rather than rounding up — accumulated rounding becomes a loss.
+  if (amount > assignment.order.totalCents) {
     return { ok: false, error: "Collected cash exceeds order total." };
   }
 
